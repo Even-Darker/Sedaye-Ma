@@ -14,7 +14,6 @@ from src.database import init_db
 from src.handlers import (
     start_handler,
     start_callback_handler,
-    home_handler,
     menu_handlers,
     instagram_handlers,
     victories_handlers,
@@ -24,9 +23,8 @@ from src.handlers import (
     resources_handlers,
     settings_handlers,
     admin_handlers,
-    stats_handlers,
-    stats_handlers,
     suggest_handlers,
+    report_removal_conversation,
     text_menu_handler,
 )
 
@@ -48,7 +46,6 @@ async def post_init(application: Application) -> None:
     # Set bot commands
     commands = [
         BotCommand("start", "شروع ربات"),
-        BotCommand("home", "خانه 🏠"),
     ]
     await application.bot.set_my_commands(commands)
     logger.info("Bot commands set successfully!")
@@ -75,7 +72,6 @@ def main():
     # Register handlers
     # Start command and main menu button
     application.add_handler(start_handler)
-    application.add_handler(home_handler)
     application.add_handler(start_callback_handler)    
     # Menu navigation
     for handler in menu_handlers:
@@ -109,9 +105,10 @@ def main():
     for handler in settings_handlers:
         application.add_handler(handler)
     
-    # Statistics
-    for handler in stats_handlers:
-        application.add_handler(handler)
+
+    
+    # User removal reports (victories)
+    application.add_handler(report_removal_conversation)
     
     # User suggestions 
     for handler in suggest_handlers:

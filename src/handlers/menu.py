@@ -27,17 +27,26 @@ async def back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
-    user_id = update.effective_user.id
-    is_admin = await is_user_admin(user_id)
+    try:
+        await query.message.delete()
+    except Exception:
+        await query.edit_message_text("👇 لطفاً از منوی پایین استفاده کنید")
+
+
+async def back_to_report_sandisi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle back to Report Sandisi menu."""
+    query = update.callback_query
+    await query.answer()
     
     await query.edit_message_text(
-        Messages.MAIN_MENU_HEADER,
+        Messages.REPORT_SANDISI_DESCRIPTION,
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.main_menu(is_admin=is_admin)
+        reply_markup=Keyboards.report_sandisi_menu()
     )
 
 
 # Export handlers
 menu_handlers = [
     CallbackQueryHandler(back_to_main, pattern=f"^{CallbackData.BACK_MAIN}$"),
+    CallbackQueryHandler(back_to_report_sandisi, pattern=f"^{CallbackData.BACK_SANDISI}$"),
 ]

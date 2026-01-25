@@ -15,24 +15,32 @@ from src.database.models import TargetStatus
 
 
 async def show_victories(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show victory wall."""
+    """Show victory wall with statistics."""
     query = update.callback_query
     await query.answer()
     
     async with get_db() as session:
-        # Get this week's victories
-        week_ago = datetime.utcnow() - timedelta(days=7)
-        
-        weekly_result = await session.execute(
-            select(Victory).where(Victory.victory_date >= week_ago)
+        # Active targets count
+        active_result = await session.execute(
+            select(func.count(InstagramTarget.id))
+            .where(InstagramTarget.status == TargetStatus.ACTIVE)
         )
-        weekly_victories = len(weekly_result.scalars().all())
+        active_targets = active_result.scalar() or 0
+
+        # Removed targets count (Total victories)
+        removed_result = await session.execute(
+            select(func.count(InstagramTarget.id))
+            .where(InstagramTarget.status == TargetStatus.REMOVED)
+        )
+        removed_targets = removed_result.scalar() or 0
         
-        # Get total victories
-        total_result = await session.execute(select(func.count(Victory.id)))
-        total_victories = total_result.scalar() or 0
+        # Total reports
+        reports_result = await session.execute(
+            select(func.sum(InstagramTarget.anonymous_report_count))
+        )
+        total_reports = reports_result.scalar() or 0
         
-        # Get total followers silenced
+        # Followers silenced
         silenced_result = await session.execute(
             select(func.sum(InstagramTarget.followers_count))
             .where(InstagramTarget.status == TargetStatus.REMOVED)
@@ -47,15 +55,19 @@ async def show_victories(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         latest = latest_result.scalar_one_or_none()
         
-        # Build message
+        # Build message with merged stats
+        stats_block = Messages.VICTORY_STATS_BLOCK.format(
+            Formatters.escape_markdown(str(active_targets)),
+            Formatters.escape_markdown(str(removed_targets)),
+            Formatters.escape_markdown(Formatters.format_number(followers_silenced)),
+            Formatters.escape_markdown(Formatters.format_number(total_reports))
+        )
+
         message = f"""
 {Messages.VICTORIES_HEADER}
 {Messages.VICTORIES_SUBTITLE}
 
-{Messages.VICTORY_THIS_WEEK.format(weekly_victories)}
-{Messages.VICTORY_TOTAL.format(total_victories)}
-{Messages.VICTORY_FOLLOWERS_SILENCED.format(Formatters.escape_markdown(Formatters.format_number(followers_silenced)))}
-
+{stats_block}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
         
@@ -109,7 +121,7 @@ async def view_all_victories(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text(
             message,
             parse_mode="MarkdownV2",
-            reply_markup=Keyboards.back_to_main()
+            reply_markup=Keyboards.back_to_sandisi()
         )
 
 
