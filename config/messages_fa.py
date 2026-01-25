@@ -39,7 +39,7 @@ Made with ❤️ for the great people of Iran
     MENU_VICTORIES = "🏆 دیوار پیروزی"
     MENU_STATS = "📊 آمار ما"
     MENU_ANNOUNCEMENTS = "📢 اطلاعیه‌ها"
-    MENU_PETITIONS = "📝 کارزارها"
+    MENU_PETITIONS = "📝 پتیشن ها"
     MENU_SOLIDARITY = "✍️ پیام همبستگی"
     MENU_RESOURCES = "📚 راهنمای امنیت"
     MENU_SETTINGS = "⚙️ تنظیمات"

@@ -180,7 +180,7 @@ class Keyboards:
         """Menu to filter targets (New vs Reported vs All)."""
         return InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("✅ قدیمی", callback_data=CallbackData.FILTER_REPORTED),
+                InlineKeyboardButton("🕰️ قدیمی", callback_data=CallbackData.FILTER_REPORTED),
                 InlineKeyboardButton("🧃 جدید", callback_data=CallbackData.FILTER_NEW),
             ],
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)],
