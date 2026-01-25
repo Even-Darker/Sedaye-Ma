@@ -44,14 +44,15 @@ async def start_suggest_target(update: Update, context: ContextTypes.DEFAULT_TYP
     if is_admin:
         message = (
             "➕ *افزودن صفحه جدید*\n\n"
-            "لطفاً handle اینستاگرام را وارد کنید \\(بدون @\\):"
+            "لطفاً handle اینستاگرام را وارد کنید\\.\n"
+            "می‌توانید یک نام کاربری \\(با یا بدون @\\) یا لیستی از نام‌های کاربری را ارسال کنید:"
         )
     else:
         message = (
             "➕ *پیشنهاد صفحه جدید*\n\n"
             "شما می‌توانید صفحه‌ای را برای گزارش پیشنهاد دهید\\.\n"
             "پس از تأیید ادمین‌ها، صفحه به لیست اضافه خواهد شد\\.\n\n"
-            "لطفاً handle اینستاگرام را وارد کنید \\(بدون @\\):"
+            "لطفاً handle اینستاگرام را وارد کنید \\(تکی یا لیست\\):"
         )
     
     await query.edit_message_text(
@@ -64,10 +65,11 @@ async def start_suggest_target(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def receive_suggest_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Receive the suggested handle and validate it."""
+    """Receive the suggested handle(s) and validate."""
     from src.services.instagram import InstagramValidator, validate_instagram_handle
+    from src.utils.parsers import HandleParser
     
-    handle = update.message.text.strip().replace("@", "").lower()
+    text = update.message.text
     user_id = update.effective_user.id
     
     # Store admin status for later
@@ -76,72 +78,104 @@ async def receive_suggest_handle(update: Update, context: ContextTypes.DEFAULT_T
     
     # Show loading message
     loading_msg = await update.message.reply_text(
-        "⏳ در حال بررسی صفحه اینستاگرام\\.\\.\\.",
+        "⏳ در حال پردازش\\.\\.\\.",
         parse_mode="MarkdownV2"
     )
     
-    # Validate format first
-    is_valid, format_error = InstagramValidator.validate_handle_format(handle)
-    if not is_valid:
+    # Parse handles
+    handles = HandleParser.extract_handles(text)
+    
+    if not handles:
         await loading_msg.edit_text(
-            f"⚠️ *فرمت handle نامعتبر است*\n\n"
-            f"خطا: {Formatters.escape_markdown(format_error)}\n\n"
-            "لطفاً یک handle معتبر وارد کنید:",
-            parse_mode="MarkdownV2"
+            "⚠️ *هیچ نام کاربری معتبری یافت نشد*\n\n"
+            "لطفاً مطمئن شوید که نام‌های کاربری را صحیح وارد کرده‌اید\\.",
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.back_to_sandisi()
         )
         return SUGGEST_HANDLE
+        
+    # Process Handles
+    unique_handles = list(set(handles))
     
-    # Check if already in database (any status)
+    # Check for duplicates in DB (bulk check optimization)
+    # For simplicity, we check one by one or filter out existing
     async with get_db() as session:
-        result = await session.execute(
-            select(InstagramTarget).where(InstagramTarget.ig_handle == handle)
+        existing_result = await session.execute(
+            select(InstagramTarget.ig_handle).where(InstagramTarget.ig_handle.in_(unique_handles))
         )
-        existing = result.scalar_one_or_none()
-        if existing:
-            status_text = {
-                TargetStatus.ACTIVE: "قبلاً در لیست وجود دارد",
-                TargetStatus.PENDING: "قبلاً پیشنهاد شده و در انتظار تأیید است",
-                TargetStatus.REMOVED: "قبلاً گزارش شده و حذف شده است",
-                TargetStatus.REPORTED: "قبلاً در لیست وجود دارد",
-            }
+        existing_handles = [h.lower() for h in existing_result.scalars().all()]
+        
+    new_handles = [h for h in unique_handles if h not in existing_handles]
+    
+    if not new_handles:
+        await loading_msg.edit_text(
+            "⚠️ *همه موارد تکراری هستند*\n\n"
+            "تمام صفحات وارد شده قبلاً در سیستم ثبت شده‌اند\\.",
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.back_to_sandisi()
+        )
+        return ConversationHandler.END
+
+    # If single handle, validate logic similar to before (strict)
+    if len(new_handles) == 1:
+        handle = new_handles[0]
+        
+        # Validate format
+        is_valid, format_error = InstagramValidator.validate_handle_format(handle)
+        if not is_valid:
+             await loading_msg.edit_text(
+                f"⚠️ *فرمت handle نامعتبر است*\n\n"
+                f"خطا: {Formatters.escape_markdown(format_error)}\n",
+                parse_mode="MarkdownV2",
+                 reply_markup=Keyboards.back_to_sandisi()
+            )
+             return SUGGEST_HANDLE
+
+        # Validate on Instagram
+        profile = await validate_instagram_handle(handle)
+        if not profile.exists:
             await loading_msg.edit_text(
-                f"⚠️ صفحه @{Formatters.escape_markdown(handle)} {status_text.get(existing.status, 'موجود است')}\\.",
+                f"❌ *صفحه پیدا نشد*\n\n"
+                f"صفحه @{Formatters.escape_markdown(handle)} در اینستاگرام وجود ندارد\\.",
                 parse_mode="MarkdownV2",
                 reply_markup=Keyboards.back_to_sandisi()
             )
-            return ConversationHandler.END
-    
-    # Validate on Instagram
-    profile = await validate_instagram_handle(handle)
-    
-    if not profile.exists:
-        error_detail = ""
-        if profile.error:
-            error_detail = f"\n_{Formatters.escape_markdown(profile.error)}_"
+            return SUGGEST_HANDLE
+            
+        context.user_data["suggest_handles"] = [handle]
+        ig_link = f"https://instagram.com/{handle}"
+        
         await loading_msg.edit_text(
-            f"❌ *صفحه پیدا نشد*\n\n"
-            f"صفحه @{Formatters.escape_markdown(handle)} در اینستاگرام وجود ندارد\\.{error_detail}\n\n"
-            "لطفاً یک handle معتبر وارد کنید:",
-            parse_mode="MarkdownV2"
+            f"✅ *صفحه تایید شد*\n\n"
+            f"📍 Handle: [@{Formatters.escape_markdown(handle)}]({ig_link})\n\n"
+            "آیا این صفحه صحیح است؟",
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.confirm_suggest_handle(),
+            disable_web_page_preview=True
         )
-        return SUGGEST_HANDLE
-    
-    # Store handle for next step
-    context.user_data["suggest_handle"] = handle
-    
-    # Ask for confirmation
-    ig_link = f"https://instagram.com/{handle}"
-    await loading_msg.edit_text(
-        f"✅ *صفحه تایید شد*\n\n"
-        f"📍 Handle: [@{Formatters.escape_markdown(handle)}]({ig_link})\n\n"
-        "لطفاً روی نام کاربری ضربه بزنید و از صحت آن اطمینان حاصل کنید\\.\n"
-        "آیا این صفحه صحیح است؟",
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.confirm_suggest_handle(),
-        disable_web_page_preview=True
-    )
-    
-    return SUGGEST_CONFIRM
+        return SUGGEST_CONFIRM
+
+    # Bulk Mode
+    else:
+        context.user_data["suggest_handles"] = new_handles
+        
+        preview = "\n".join([f"• @{Formatters.escape_markdown(h)}" for h in new_handles[:10]])
+        if len(new_handles) > 10:
+            preview += f"\n\\.\\.\\. و {len(new_handles) - 10} مورد دیگر"
+            
+        await loading_msg.edit_text(
+            f"✅ *{len(new_handles)} نام کاربری یافت شد*\n\n"
+            f"{preview}\n\n"
+            "آیا می‌خواهید این موارد را اضافه کنید؟",
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.confirm_suggest_handle(), # Reuse confirm keyboard
+            disable_web_page_preview=True
+        )
+        return SUGGEST_CONFIRM
+
+
+
+
 
 
 async def confirm_handle_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -154,20 +188,26 @@ async def confirm_handle_action(update: Update, context: ContextTypes.DEFAULT_TY
     if action == CallbackData.SUGGEST_CONFIRM_EDIT:
         await query.edit_message_text(
             "✏️ *ویرایش نام کاربری*\n\n"
-            "لطفاً handle صحیح را وارد کنید \\(بدون @\\):",
+            "لطفاً handle (ها) صحیح را وارد کنید:",
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.back_to_sandisi()
         )
         return SUGGEST_HANDLE
         
     elif action == CallbackData.SUGGEST_CONFIRM_YES:
-        handle = context.user_data.get("suggest_handle")
-        ig_link = f"https://instagram.com/{handle}"
+        handles = context.user_data.get("suggest_handles", [])
         
+        # Format text based on count
+        if len(handles) == 1:
+            handle = handles[0]
+            ig_link = f"https://instagram.com/{handle}"
+            text = f"✅ *صفحه تأیید شد*\n\n📍 Handle: [@{Formatters.escape_markdown(handle)}]({ig_link})"
+        else:
+            text = f"✅ *{len(handles)} مورد تأیید شد*"
+            
         await query.edit_message_text(
-            f"✅ *صفحه تأیید شد*\n\n"
-            f"📍 Handle: [@{Formatters.escape_markdown(handle)}]({ig_link})\n\n"
-            "چرا این صفحه باید گزارش شود؟\n"
+            f"{text}\n\n"
+            "چرا باید گزارش شود؟\n"
             "لطفاً دلایل را وارد کنید \\(با کاما جدا کنید\\):\n\n"
             "`violence, misinformation, propaganda, human_rights, harassment`",
             parse_mode="MarkdownV2",
@@ -177,15 +217,16 @@ async def confirm_handle_action(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Receive reasons and save the target."""
+    """Receive reasons and save the target(s)."""
     from src.utils.validators import Validators
     
     reasons_text = update.message.text.strip()
     reasons_list = [r.strip().lower() for r in reasons_text.split(",")]
-    handle = context.user_data.get("suggest_handle")
+    
+    handles = context.user_data.get("suggest_handles", [])
     is_admin = context.user_data.get("is_admin", False)
     
-    if not handle:
+    if not handles:
         await update.message.reply_text(
             "⚠️ خطا: لطفاً دوباره شروع کنید\\.",
             parse_mode="MarkdownV2",
@@ -206,55 +247,57 @@ async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_
     # Determine status based on admin level
     target_status = TargetStatus.ACTIVE if is_admin else TargetStatus.PENDING
     
-    # Save target
+    # Save all targets
+    added_count = 0
+    skipped_count = 0
+    
     async with get_db() as session:
-        # Double-check for duplicates
-        result = await session.execute(
-            select(InstagramTarget).where(InstagramTarget.ig_handle == handle)
-        )
-        if result.scalar_one_or_none():
-            await update.message.reply_text(
-                f"⚠️ این صفحه قبلاً ثبت شده است\\.",
-                parse_mode="MarkdownV2",
-                reply_markup=Keyboards.back_to_sandisi()
+        for handle in handles:
+            # Double-check duplicates (race condition protection)
+            result = await session.execute(
+                select(InstagramTarget).where(InstagramTarget.ig_handle == handle)
             )
-            return ConversationHandler.END
-        
-        target = InstagramTarget(
-            ig_handle=handle,
-            report_reasons=reasons,
-            priority=5,
-            status=target_status
-        )
-        session.add(target)
+            if result.scalar_one_or_none():
+                skipped_count += 1
+                continue
+                
+            target = InstagramTarget(
+                ig_handle=handle,
+                report_reasons=reasons,
+                priority=5,
+                status=target_status
+            )
+            session.add(target)
+            added_count += 1
+            
         await session.commit()
     
-    ig_link = f"https://instagram.com/{handle}"
-    
-    if is_admin:
-        # Admin message - added directly
-        await update.message.reply_text(
-            f"✅ *صفحه اضافه شد\\!*\n\n"
-            f"📍 Handle: [@{Formatters.escape_markdown(handle)}]({ig_link})\n"
-            f"📋 دلایل: {Formatters.escape_markdown(', '.join(reasons))}",
-            parse_mode="MarkdownV2",
-            reply_markup=Keyboards.back_to_sandisi(),
-            disable_web_page_preview=True
-        )
+    # Final message
+    if added_count == 0 and skipped_count > 0:
+        msg = f"⚠️ *همه موارد تکراری بودند*\n{skipped_count} مورد قبلاً ثبت شده بود\\."
     else:
-        # Regular user message - pending approval
-        await update.message.reply_text(
-            f"✅ *پیشنهاد شما ثبت شد\\!*\n\n"
-            f"📍 Handle: [@{Formatters.escape_markdown(handle)}]({ig_link})\n"
-            f"📋 دلایل: {Formatters.escape_markdown(', '.join(reasons))}\n\n"
-            f"_پس از تأیید ادمین‌ها، صفحه به لیست اضافه خواهد شد\\._",
-            parse_mode="MarkdownV2",
-            reply_markup=Keyboards.back_to_sandisi(),
-            disable_web_page_preview=True
-        )
+        dup_text = f"\n_({skipped_count} تکراری نادیده گرفته شد)_" if skipped_count > 0 else ""
+        if is_admin:
+            msg = (
+                f"✅ *{added_count} صفحه اضافه شد\\!*{dup_text}\n\n"
+                f"📋 دلایل: {Formatters.escape_markdown(', '.join(reasons))}"
+            )
+        else:
+             msg = (
+                f"✅ *پیشنهاد {added_count} صفحه ثبت شد\\!*{dup_text}\n\n"
+                f"📋 دلایل: {Formatters.escape_markdown(', '.join(reasons))}\n\n"
+                f"_پس از تأیید ادمین‌ها، به لیست اضافه خواهند شد\\._"
+            )
+    
+    await update.message.reply_text(
+        msg,
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.back_to_sandisi(),
+        disable_web_page_preview=True
+    )
     
     # Clear user data
-    context.user_data.pop("suggest_handle", None)
+    context.user_data.pop("suggest_handles", None)
     context.user_data.pop("is_admin", None)
     
     return ConversationHandler.END
@@ -264,7 +307,7 @@ async def cancel_suggest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel the suggestion flow."""
     query = update.callback_query
     await query.answer()
-    context.user_data.pop("suggest_handle", None)
+    context.user_data.pop("suggest_handles", None)
     context.user_data.pop("is_admin", None)
     
     await query.edit_message_text(

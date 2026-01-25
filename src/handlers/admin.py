@@ -71,7 +71,7 @@ async def start_add_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await query.edit_message_text(
-        "➕ *افزودن صفحه جدید*\n\nلطفاً handle اینستاگرام را وارد کنید \\(بدون @\\):",
+        "➕ *افزودن صفحه جدید*\n\nلطفاً handle اینستاگرام را وارد کنید \\(تکی یا لیست\\):",
         parse_mode="MarkdownV2"
     )
     
@@ -79,68 +79,97 @@ async def start_add_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Receive target handle and validate it."""
+    """Receive target handle(s) and validate."""
     from src.services.instagram import InstagramValidator, validate_instagram_handle
-    from src.utils.validators import Validators
+    from src.utils.parsers import HandleParser
     
-    handle = update.message.text.strip().replace("@", "").lower()
+    text = update.message.text
     user_id = update.effective_user.id
     
     # Show loading message
     loading_msg = await update.message.reply_text(
-        "⏳ در حال بررسی صفحه اینستاگرام\\.\\.\\.",
+        "⏳ در حال پردازش\\.\\.\\.",
         parse_mode="MarkdownV2"
     )
     
-    # Validate format first
-    is_valid, format_error = InstagramValidator.validate_handle_format(handle)
-    if not is_valid:
+    # Parse handles
+    handles = HandleParser.extract_handles(text)
+    
+    if not handles:
         await loading_msg.edit_text(
-            f"⚠️ *فرمت handle نامعتبر است*\n\n"
-            f"خطا: {Formatters.escape_markdown(format_error)}\n\n"
+            f"⚠️ *فرمت نامعتبر است*\n\n"
             "لطفاً یک handle معتبر وارد کنید:",
             parse_mode="MarkdownV2"
         )
         return ADDING_TARGET_HANDLE
     
-    # Check if already in database
+    # Process Handles
+    unique_handles = list(set(handles))
+    
+    # Check for duplicates in DB
     async with get_db() as session:
-        result = await session.execute(
-            select(InstagramTarget).where(InstagramTarget.ig_handle == handle)
+        existing_result = await session.execute(
+            select(InstagramTarget.ig_handle).where(InstagramTarget.ig_handle.in_(unique_handles))
         )
-        if result.scalar_one_or_none():
-            await loading_msg.edit_text(
-                f"⚠️ صفحه @{Formatters.escape_markdown(handle)} قبلاً در لیست وجود دارد\\.",
-                parse_mode="MarkdownV2",
-                reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(user_id))
-            )
-            return ConversationHandler.END
+        existing_handles = [h.lower() for h in existing_result.scalars().all()]
+        
+    new_handles = [h for h in unique_handles if h not in existing_handles]
     
-    # Validate on Instagram
-    profile = await validate_instagram_handle(handle)
-    
-    if not profile.exists:
+    if not new_handles:
         await loading_msg.edit_text(
-            f"❌ *صفحه پیدا نشد*\n\n"
-            f"صفحه @{Formatters.escape_markdown(handle)} در اینستاگرام وجود ندارد\\.\n\n"
-            "لطفاً یک handle معتبر وارد کنید:",
+            f"⚠️ همه {len(unique_handles)} مورد قبلاً در لیست وجود دارند\\.",
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(user_id))
+        )
+        return ConversationHandler.END
+
+    # If single handle, validate logic similar to before (strict)
+    if len(new_handles) == 1:
+        handle = new_handles[0]
+        
+        # Validate format
+        is_valid, format_error = InstagramValidator.validate_handle_format(handle)
+        if not is_valid:
+             await loading_msg.edit_text(
+                f"⚠️ *فرمت handle نامعتبر است*\n\n"
+                f"خطا: {Formatters.escape_markdown(format_error)}\n",
+                parse_mode="MarkdownV2"
+            )
+             return ADDING_TARGET_HANDLE
+
+        # Validate on Instagram
+        profile = await validate_instagram_handle(handle)
+        if not profile.exists:
+            await loading_msg.edit_text(
+                f"❌ *صفحه پیدا نشد*\n\n"
+                f"صفحه @{Formatters.escape_markdown(handle)} در اینستاگرام وجود ندارد\\.",
+                parse_mode="MarkdownV2"
+            )
+            return ADDING_TARGET_HANDLE
+            
+        context.user_data["new_target_handles"] = [handle]
+        
+        await loading_msg.edit_text(
+            f"✅ *صفحه تأیید شد*\n\n"
+            f"📍 Handle: @{Formatters.escape_markdown(handle)}\n\n"
+            "حالا دلایل گزارش را وارد کنید \\(با کاما جدا کنید\\):\n"
+            "`violence, misinformation, propaganda, human_rights, harassment`",
             parse_mode="MarkdownV2"
         )
-        return ADDING_TARGET_HANDLE
-    
-    # Store handle for next step
-    context.user_data["new_target_handle"] = handle
-    
-    # Show confirmation with reasons prompt
-    await loading_msg.edit_text(
-        f"✅ *صفحه تأیید شد*\n\n"
-        f"📍 Handle: @{Formatters.escape_markdown(handle)}\n\n"
-        "حالا دلایل گزارش را وارد کنید \\(با کاما جدا کنید\\):\n"
-        "`violence, misinformation, propaganda, human_rights, harassment`",
-        parse_mode="MarkdownV2"
-    )
-    
-    return ADDING_TARGET_REASONS
+        return ADDING_TARGET_REASONS
+
+    # Bulk Mode
+    else:
+        context.user_data["new_target_handles"] = new_handles
+        
+        await loading_msg.edit_text(
+            f"✅ *{len(new_handles)} نام کاربری یافت شد*\n\n"
+            f"آیا مطمئن هستید؟\n\n"
+            "حالا دلایل گزارش را برای **همه این موارد** وارد کنید \\(با کاما جدا کنید\\):\n"
+            "`violence, misinformation, propaganda, human_rights, harassment`",
+            parse_mode="MarkdownV2"
+        )
+        return ADDING_TARGET_REASONS
 
 
 async def receive_target_reasons(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -149,10 +178,11 @@ async def receive_target_reasons(update: Update, context: ContextTypes.DEFAULT_T
     
     reasons_text = update.message.text.strip()
     reasons_list = [r.strip().lower() for r in reasons_text.split(",")]
-    handle = context.user_data.get("new_target_handle")
+    
+    handles = context.user_data.get("new_target_handles", [])
     user_id = update.effective_user.id
     
-    if not handle:
+    if not handles:
         await update.message.reply_text(
             "⚠️ خطا: لطفاً دوباره شروع کنید\\.",
             parse_mode="MarkdownV2",
@@ -170,35 +200,48 @@ async def receive_target_reasons(update: Update, context: ContextTypes.DEFAULT_T
         )
         return ADDING_TARGET_REASONS
     
+    added_count = 0
+    skipped_count = 0
+    
     async with get_db() as session:
-        # Double-check for duplicates
-        result = await session.execute(
-            select(InstagramTarget).where(InstagramTarget.ig_handle == handle)
-        )
-        if result.scalar_one_or_none():
-            await update.message.reply_text(
-                f"⚠️ این صفحه قبلاً اضافه شده است\\.",
-                parse_mode="MarkdownV2",
-                reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(user_id))
+        for handle in handles:
+            # Double-check for duplicates
+            result = await session.execute(
+                select(InstagramTarget).where(InstagramTarget.ig_handle == handle)
             )
-            return ConversationHandler.END
-        
-        target = InstagramTarget(
-            ig_handle=handle,
-            report_reasons=reasons,
-            priority=5,
-            status=TargetStatus.ACTIVE
-        )
-        session.add(target)
+            if result.scalar_one_or_none():
+                skipped_count += 1
+                continue
+            
+            target = InstagramTarget(
+                ig_handle=handle,
+                report_reasons=reasons,
+                priority=5,
+                status=TargetStatus.ACTIVE
+            )
+            session.add(target)
+            added_count += 1
+            
         await session.commit()
     
+    # Build result message
+    if added_count == 0 and skipped_count > 0:
+        msg = f"⚠️ *همه {skipped_count} مورد قبلاً اضافه شده بودند*\\."
+    else:
+        dup_text = f"\n_({skipped_count} تکراری نادیده گرفته شد)_" if skipped_count > 0 else ""
+        msg = (
+            f"✅ *{added_count} صفحه اضافه شد\\!*{dup_text}\n\n"
+            f"📋 دلایل: {Formatters.escape_markdown(', '.join(reasons))}"
+        )
+        
     await update.message.reply_text(
-        f"✅ *صفحه اضافه شد\\!*\n\n"
-        f"📍 Handle: @{Formatters.escape_markdown(handle)}\n"
-        f"📋 دلایل: {Formatters.escape_markdown(', '.join(reasons))}",
+        msg,
         parse_mode="MarkdownV2",
         reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(user_id))
     )
+    
+    # Clear data
+    context.user_data.pop("new_target_handles", None)
     
     return ConversationHandler.END
 
