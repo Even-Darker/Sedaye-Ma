@@ -11,6 +11,7 @@ from .models import (
     ReportTemplate,
     NotificationPreference,
     UserReportLog,
+    UserConcernLog,
 )
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     'ReportTemplate',
     'NotificationPreference',
     'UserReportLog',
+    'UserConcernLog',
 ]
