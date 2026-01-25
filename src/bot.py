@@ -73,9 +73,7 @@ def main():
     # Start command and main menu button
     application.add_handler(start_handler)
     application.add_handler(start_callback_handler)    
-    # Menu navigation
-    for handler in menu_handlers:
-        application.add_handler(handler)
+
     
     # Instagram targets
     for handler in instagram_handlers:
@@ -118,6 +116,10 @@ def main():
     for handler in admin_handlers:
         application.add_handler(handler)
         
+    # Menu navigation (Generic back buttons - must be after conversations)
+    for handler in menu_handlers:
+        application.add_handler(handler)
+
     # Text menu handler (must be last to not catch commands or conversation states)
     application.add_handler(text_menu_handler)
     

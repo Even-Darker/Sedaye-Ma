@@ -216,8 +216,7 @@ async def confirm_handle_action(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(
             f"{text}\n\n"
             "چرا باید گزارش شود؟\n"
-            "لطفاً دلایل را وارد کنید \\(با کاما جدا کنید\\):\n\n"
-            "`violence, misinformation, propaganda, human_rights, harassment`",
+            "لطفاً دلایل را وارد کنید \\(اگر دلیل خاصی ندارید بزنید ساندیس\\!\\):",
             parse_mode="MarkdownV2",
             disable_web_page_preview=True
         )
@@ -313,16 +312,28 @@ async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_
 
 async def cancel_suggest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel the suggestion flow."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     query = update.callback_query
     await query.answer()
     context.user_data.pop("suggest_handles", None)
     context.user_data.pop("is_admin", None)
     
-    await query.edit_message_text(
-        Messages.REPORT_SANDISI_DESCRIPTION,
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.report_sandisi_menu()
-    )
+    try:
+        await query.edit_message_text(
+            Messages.REPORT_SANDISI_DESCRIPTION,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.report_sandisi_menu()
+        )
+    except Exception as e:
+        logger.error(f"Error in cancel_suggest: {e}")
+        # Fallback to plain text if markdown fails
+        await query.edit_message_text(
+            Messages.REPORT_SANDISI_DESCRIPTION.replace("*", "").replace("_", "").replace("\\", ""),
+            reply_markup=Keyboards.report_sandisi_menu()
+        )
+        
     return ConversationHandler.END
 
 
