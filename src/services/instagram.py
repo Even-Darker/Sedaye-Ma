@@ -16,7 +16,6 @@ class InstagramProfile:
     """Basic Instagram profile information."""
     username: str
     exists: bool
-    verified: bool = False  # True if we explicitly found the profile, False if inconclusive
     display_name: Optional[str] = None
     followers_count: Optional[int] = None
     is_private: Optional[bool] = None
@@ -107,7 +106,6 @@ class InstagramValidator:
                             return InstagramProfile(
                                 username=handle,
                                 exists=False,
-                                verified=True, # Explicitly verified as NOT existing
                                 error="Profile not found"
                             )
                     
@@ -123,48 +121,45 @@ class InstagramValidator:
                     
                     # 3. Check for Login Wall (which usually means page exists but is protected/rate-limited)
                     login_indicators = [
-                         'login',
-                         'auth',
-                         'accounts/login',
-                         'Next',
+                        'login',
+                        'auth',
+                        'accounts/login',
+                        'Next',  # Only on login page usually
                     ]
                     is_login_page = 'login' in str(response.url).lower() or \
                                    any(ind.lower() in html.lower() for ind in login_indicators)
                     
                     # DECISION LOGIC:
-                    # If we found positive proof -> Exists & Verified
+                    # If we found positive proof -> Exists
                     if found_profile:
                         return InstagramProfile(
                             username=handle,
                             exists=True,
-                            verified=True,
                             error=None
                         )
                         
-                    # If we got a 404 status code -> Does not exist & Verified
+                    # If we got a 404 status code -> Does not exist
                     if response.status == 404:
                          return InstagramProfile(
                             username=handle,
                             exists=False,
-                            verified=True,
                             error="Profile not found"
                         )
                         
-                    # If we hit a login wall or got a 200 without error -> Assume Exists but NOT Verified
+                    # If we hit a login wall or got a 200 without error -> Assume Exists (Soft Pass)
+                    # Real 404s usually have the "Page Not Found" text even if status is 200
                     if is_login_page or response.status == 200:
                          return InstagramProfile(
                             username=handle,
                             exists=True,
-                            verified=False, # Inconclusive!
-                            error=None
+                            error=None  # We assume it exists to avoid blocking real users
                         )
                     
-                    # Fallback -> Inconclusive
+                    # Fallback for other errors (5xx, etc) -> Assume Exists (Optimistic)
                     logger.warning(f"Could not verify @{handle} definitive - status {response.status}")
                     return InstagramProfile(
                         username=handle,
-                        exists=True,
-                        verified=False,
+                        exists=True,  # Allow it to proceed to manual verification
                         error=None
                     )
         
@@ -172,8 +167,7 @@ class InstagramValidator:
             logger.error(f"Network error checking @{handle}: {e}")
             return InstagramProfile(
                 username=handle,
-                exists=True,
-                verified=False, # Network error = Inconclusive
+                exists=True,  # Allow on network error (don't block user)
                 error=None
             )
         
@@ -181,8 +175,7 @@ class InstagramValidator:
             logger.error(f"Unexpected error checking @{handle}: {e}")
             return InstagramProfile(
                 username=handle,
-                exists=True,
-                verified=False,
+                exists=True,  # Allow on unexpected error
                 error=None
             )
 
