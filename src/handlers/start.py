@@ -24,6 +24,9 @@ async def is_user_admin(user_id: int) -> bool:
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command - show welcome message."""
+    user_id = update.effective_user.id
+    is_admin = await is_user_admin(user_id)
+    
     await update.message.reply_text(
         Messages.WELCOME,
         parse_mode="MarkdownV2",
