@@ -33,16 +33,18 @@ class HandleParser:
         found_handles: Set[str] = set()
         
         # Method 1: Look for explicit @mentions
-        at_matches = re.findall(r'@([a-zA-Z0-9_\.]{1,30})', text)
+        # Capture full sequence of handle characters, then filter by length
+        at_matches = re.findall(r'@([a-zA-Z0-9_\.]+)', text)
         for handle in at_matches:
-            # Filter out common false positives if necessary (e.g. email domains if regex was looser)
-            if handle.strip():
+            # Check length limit (30 chars)
+            if handle.strip() and len(handle.strip()) <= 30:
                 found_handles.add(handle.strip().lower())
                 
         # Method 2: Look for instagram.com URLs
-        url_matches = re.findall(r'instagram\.com/([a-zA-Z0-9_\.]{1,30})', text)
+        url_matches = re.findall(r'instagram\.com/([a-zA-Z0-9_\.]+)', text)
         for handle in url_matches:
-            if handle.strip():
+            # Check length limit
+            if handle.strip() and len(handle.strip()) <= 30:
                 found_handles.add(handle.strip().lower())
                 
         # Method 3: If strict parsing yielded nothing, or if the text looks like a simple list
@@ -60,7 +62,8 @@ class HandleParser:
                     found_handles.add(clean.lower())
                 
         # If we still have nothing, and the input is a single word, treat it as a handle
-        if not found_handles and re.match(r'^[a-zA-Z0-9_\.]{1,30}$', text):
+        # Check if single word matches allowed chars and length
+        if not found_handles and re.match(r'^[a-zA-Z0-9_\.]+$', text) and len(text) <= 30:
              found_handles.add(text.lower())
              
         # Remove trailing dots (common sentence end)
