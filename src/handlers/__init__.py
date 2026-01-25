@@ -11,6 +11,7 @@ from .settings import settings_handlers
 from .admin import admin_handlers
 from .stats import stats_handlers
 from .suggest import suggest_handlers
+from .text_menu import text_menu_handler
 
 __all__ = [
     'start_handler',
@@ -27,5 +28,6 @@ __all__ = [
     'admin_handlers',
     'stats_handlers',
     'suggest_handlers',
+    'text_menu_handler',
 ]
 

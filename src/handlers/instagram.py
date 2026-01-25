@@ -18,14 +18,22 @@ TARGETS_PER_PAGE = 5
 
 async def show_report_sandisi_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show the Report Sandisi submenu."""
-    query = update.callback_query
-    await query.answer()
-    
-    await query.edit_message_text(
-        Messages.MENU_TARGETS,  # "🧃 ریپورت ساندیسی"
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.report_sandisi_menu()
-    )
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        
+        await query.edit_message_text(
+            Messages.MENU_TARGETS,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.report_sandisi_menu()
+        )
+    else:
+        # From text menu
+        await update.message.reply_text(
+            Messages.MENU_TARGETS,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.report_sandisi_menu()
+        )
 
 
 async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -14,13 +14,21 @@ from src.database import get_db, ReportTemplate
 async def show_resources(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show resources menu."""
     query = update.callback_query
-    await query.answer()
+    if query:
+        await query.answer()
     
-    await query.edit_message_text(
-        Messages.RESOURCES_HEADER,
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.resources_menu()
-    )
+    if query:
+        await query.edit_message_text(
+            Messages.RESOURCES_HEADER,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.resources_menu()
+        )
+    else:
+        await update.message.reply_text(
+            Messages.RESOURCES_HEADER,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.resources_menu()
+        )
 
 
 async def show_report_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
