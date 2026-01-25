@@ -47,9 +47,9 @@ class HandleParser:
             if handle.strip() and len(handle.strip()) <= 30:
                 found_handles.add(handle.strip().lower())
                 
-        # Method 3: If strict parsing yielded nothing, or if the text looks like a simple list
-        # Try line-by-line parsing for plain handles
-        if not found_handles:
+        # Method 3: Line-by-line parsing
+        # Run if no handles found via strict methods, OR if text appears to be a multi-line list
+        if not found_handles or '\n' in text:
             lines = text.split('\n')
             for line in lines:
                 # Clean line
@@ -57,7 +57,7 @@ class HandleParser:
                 # Remove common list markers (1., -, •)
                 clean = re.sub(r'^[\d\-\.\)\•]+\s*', '', clean)
                 
-                # If what remains looks like a handle, take it
+                # If what remains looks like a single handle, take it
                 if re.match(r'^[a-zA-Z0-9_\.]{1,30}$', clean):
                     found_handles.add(clean.lower())
                 

@@ -21,7 +21,7 @@ async def handle_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle text messages from persistent menu."""
     text = update.message.text
     
-    if text == Messages.MENU_TARGETS:
+    if text == Messages.MENU_TARGETS or "ریپورت ساندیسی" in text:
         await instagram.show_report_sandisi_menu(update, context)
         
     elif text == Messages.MENU_ANNOUNCEMENTS:
@@ -40,9 +40,8 @@ async def handle_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await settings.show_settings(update, context)
         
     elif text == Messages.ADMIN_HEADER:
-        # Check if actually admin
-        if update.effective_user.id in settings.super_admin_ids: # Basic check, or use helper
-             await admin.admin_panel(update, context)
+        # Let the admin_panel handler decide access (it has @admin_required)
+        await admin.admin_panel(update, context)
 
 # Export handler
 text_menu_handler = MessageHandler(

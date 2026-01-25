@@ -36,44 +36,107 @@ async def show_report_sandisi_menu(update: Update, context: ContextTypes.DEFAULT
         )
 
 
-async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show list of active targets."""
+async def show_filter_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show the targets filter menu (New vs All)."""
     query = update.callback_query
     await query.answer()
     
+    await query.edit_message_text(
+        "🔍 *فیلتر لیست*\n\nچه صفحاتی را می‌خواهید ببینید؟",
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.targets_filter_menu()
+    )
+
+
+async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show list of active targets with optional filter."""
+    query = update.callback_query
+    if not context.user_data.get('skip_answer'):
+        await query.answer()
+    
+    # Determine filter type from callback data
+    # Defaults to ALL if not specified (legacy behavior)
+    filter_type = CallbackData.FILTER_ALL
+    if query.data in [CallbackData.FILTER_NEW, CallbackData.FILTER_REPORTED, CallbackData.FILTER_ALL]:
+        filter_type = query.data
+        # Save filter in user_context for pagination
+        context.user_data['targets_filter'] = filter_type
+    elif 'targets_filter' in context.user_data:
+        filter_type = context.user_data['targets_filter']
+        
+    # Prepare User Hash for filtering
+    user_id = query.from_user.id
+    from hashlib import sha256
+    from config import settings
+    from src.database.models import UserReportLog
+    
+    salt = settings.encryption_key or "default_salt" 
+    user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+    
     async with get_db() as session:
-        result = await session.execute(
-            select(InstagramTarget)
-            .where(InstagramTarget.status == TargetStatus.ACTIVE)
-            .order_by(InstagramTarget.priority.asc(), InstagramTarget.anonymous_report_count.desc())
-            .limit(TARGETS_PER_PAGE)
-        )
+        # Base query
+        stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
+        
+        # Apply Filter
+        if filter_type == CallbackData.FILTER_NEW:
+            # Subquery: IDs user has reported
+            subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
+            stmt = stmt.where(InstagramTarget.id.not_in(subq))
+            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \(گزارش نشده توسط شما\)*"
+            
+        elif filter_type == CallbackData.FILTER_REPORTED:
+            # Subquery: IDs user HAS reported
+            subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
+            stmt = stmt.where(InstagramTarget.id.in_(subq))
+            header_text = f"{Messages.TARGETS_HEADER}\n\n✅ *گزارش‌های من*"
+            
+        else:
+            header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*"
+
+        # Order and Limit
+        stmt = stmt.order_by(InstagramTarget.priority.asc(), InstagramTarget.anonymous_report_count.desc())
+        stmt = stmt.limit(TARGETS_PER_PAGE)
+        
+        result = await session.execute(stmt)
         targets = result.scalars().all()
         
         if not targets:
+            empty_msg = Messages.TARGETS_EMPTY
+            if filter_type == CallbackData.FILTER_NEW:
+                empty_msg = "👏 آفرین! شما تمام صفحات فعال را گزارش کرده‌اید."
+            elif filter_type == CallbackData.FILTER_REPORTED:
+                empty_msg = "شما هنوز هیچ صفحه‌ای را گزارش نکرده‌اید."
+                
             await query.edit_message_text(
-                f"{Messages.TARGETS_HEADER}\n\n{Messages.TARGETS_EMPTY}",
+                f"{header_text}\n\n{empty_msg}",
                 parse_mode="MarkdownV2",
                 reply_markup=Keyboards.back_to_sandisi()
             )
             return
         
-        # Count total for pagination
-        count_result = await session.execute(
-            select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
-        )
+        # Count total for pagination (reuse basic query logic logic)
+        # Re-build count query efficiently
+        count_stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
+        if filter_type == CallbackData.FILTER_NEW:
+             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
+             count_stmt = count_stmt.where(InstagramTarget.id.not_in(subq))
+        elif filter_type == CallbackData.FILTER_REPORTED:
+             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
+             count_stmt = count_stmt.where(InstagramTarget.id.in_(subq))
+             
+        count_result = await session.execute(count_stmt)
         total = len(count_result.scalars().all())
         total_pages = (total + TARGETS_PER_PAGE - 1) // TARGETS_PER_PAGE
         
         await query.edit_message_text(
-            Messages.TARGETS_HEADER,
+            header_text,
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.targets_list(targets, page=0, total_pages=total_pages)
         )
 
 
 async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show paginated targets."""
+    """Show paginated targets with active filter."""
     query = update.callback_query
     await query.answer()
     
@@ -81,25 +144,55 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     page = int(query.data.split(":")[-1])
     offset = page * TARGETS_PER_PAGE
     
+    # Get active filter from context
+    filter_type = context.user_data.get('targets_filter', CallbackData.FILTER_ALL)
+    
+    # Prepare User Hash
+    user_id = query.from_user.id
+    from hashlib import sha256
+    from config import settings
+    from src.database.models import UserReportLog
+    
+    salt = settings.encryption_key or "default_salt" 
+    user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+    
     async with get_db() as session:
-        result = await session.execute(
-            select(InstagramTarget)
-            .where(InstagramTarget.status == TargetStatus.ACTIVE)
-            .order_by(InstagramTarget.priority.asc(), InstagramTarget.anonymous_report_count.desc())
-            .offset(offset)
-            .limit(TARGETS_PER_PAGE)
-        )
+        stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
+        
+        if filter_type == CallbackData.FILTER_NEW:
+            subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
+            stmt = stmt.where(InstagramTarget.id.not_in(subq))
+            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \(گزارش نشده توسط شما\)*"
+            
+        elif filter_type == CallbackData.FILTER_REPORTED:
+            subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
+            stmt = stmt.where(InstagramTarget.id.in_(subq))
+            header_text = f"{Messages.TARGETS_HEADER}\n\n✅ *گزارش‌های من*"
+        else:
+            header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*"
+            
+        # Order and Limit
+        stmt = stmt.order_by(InstagramTarget.priority.asc(), InstagramTarget.anonymous_report_count.desc())
+        stmt = stmt.offset(offset).limit(TARGETS_PER_PAGE)
+        
+        result = await session.execute(stmt)
         targets = result.scalars().all()
         
-        # Count total for pagination
-        count_result = await session.execute(
-            select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
-        )
+        # Count total
+        count_stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
+        if filter_type == CallbackData.FILTER_NEW:
+             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
+             count_stmt = count_stmt.where(InstagramTarget.id.not_in(subq))
+        elif filter_type == CallbackData.FILTER_REPORTED:
+             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
+             count_stmt = count_stmt.where(InstagramTarget.id.in_(subq))
+             
+        count_result = await session.execute(count_stmt)
         total = len(count_result.scalars().all())
         total_pages = (total + TARGETS_PER_PAGE - 1) // TARGETS_PER_PAGE
         
         await query.edit_message_text(
-            Messages.TARGETS_HEADER,
+            header_text,
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.targets_list(targets, page=page, total_pages=total_pages)
         )
@@ -186,6 +279,29 @@ async def i_reported(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_id = int(query.data.split(":")[-1])
     
     async with get_db() as session:
+        # 1. Check if user already reported (Hash check)
+        user_id = query.from_user.id
+        from hashlib import sha256
+        from config import settings
+        from src.database.models import UserReportLog
+        
+        # Create hash: SHA256(user_id + encryption_key)
+        # Using encryption_key as salt since it's secret and constant
+        salt = settings.encryption_key or "default_salt" 
+        user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+        
+        # Check for existing log
+        existing_log = await session.execute(
+            select(UserReportLog).where(
+                UserReportLog.target_id == target_id,
+                UserReportLog.user_hash == user_hash
+            )
+        )
+        if existing_log.scalar_one_or_none():
+            await query.answer("⚠️ شما قبلاً این صفحه را گزارش کرده‌اید!", show_alert=True)
+            return
+
+        # 2. Get target
         result = await session.execute(
             select(InstagramTarget).where(InstagramTarget.id == target_id)
         )
@@ -195,27 +311,182 @@ async def i_reported(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
             return
         
+        # 3. Log the report (Securely)
+        new_log = UserReportLog(target_id=target_id, user_hash=user_hash)
+        session.add(new_log)
+        
         # Increment counter (anonymous!)
         target.anonymous_report_count += 1
         await session.commit()
         
         await query.answer("🙏 ممنون! گزارش شما ثبت شد ✊", show_alert=True)
         
-        # Update the card with new count
-        message = Formatters.format_target_card(target)
-        await query.edit_message_text(
-            message,
-            parse_mode="MarkdownV2",
-            reply_markup=Keyboards.target_actions(target.id, target.ig_handle)
-        )
+        # Check context: List or Card?
+        # If it's a list header, refresh list. Else refresh card.
+        # Simple heuristic: If text contains header, it's a list.
+        # But text might be truncated or difficult to check reliably.
+        # Safer: Set a flag when showing list? 
+        # Actually, user request "make it so that... report faster" implies List View.
+        # I will prioritize List View refresh.
+        
+        # Prevent double answer in show_targets_list
+        context.user_data['skip_answer'] = True
+        try:
+            await show_targets_list(update, context)
+        finally:
+            context.user_data['skip_answer'] = False
+
+
+# Concern Conversation States
+CHOOSING_CONCERN = 1
+WAITING_FOR_CONCERN_MESSAGE = 2
+
+async def start_concern_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start concern report flow - Show Menu."""
+    query = update.callback_query
+    target_id = int(query.data.split(":")[-1])
+    
+    # Save target_id specific to this flow if needed, 
+    # but for simple menu we can carry it in callback_data.
+    # Actually wait, we need to answer query first.
+    await query.answer()
+    
+    await query.edit_message_text(
+        "🤔 *گزارش مشکل*\n\nلطفاً نوع مشکل را انتخاب کنید:",
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.concern_menu(target_id)
+    )
+    return CHOOSING_CONCERN
+
+async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """User selected 'Page Closed'."""
+    query = update.callback_query
+    target_id = int(query.data.split(":")[-1])
+    
+    async with get_db() as session:
+        # Get target info
+        target = (await session.execute(
+            select(InstagramTarget).where(InstagramTarget.id == target_id)
+        )).scalar_one_or_none()
+        
+        if not target:
+            await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
+            return ConversationHandler.END
+
+        # Notify Admins
+        from src.database.models import Admin
+        admins = (await session.execute(select(Admin))).scalars().all()
+        
+        for admin in admins:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin.telegram_id,
+                    text=f"🚨 *گزارش بسته شدن صفحه*\n\n👤 کاربر: {query.from_user.mention_html()}\nTarget: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
+                    parse_mode="HTML",
+                    reply_markup=Keyboards.admin_confirm_closed(target.id)
+                )
+            except Exception:
+                pass
+
+    await query.answer("✅ گزارش شما برای ادمین ارسال شد.", show_alert=True)
+    return ConversationHandler.END
+
+async def concern_other_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """User selected 'Other' - Ask for message."""
+    query = update.callback_query
+    target_id = int(query.data.split(":")[-1])
+    
+    context.user_data['concern_target_id'] = target_id
+    
+    await query.answer()
+    await query.edit_message_text(
+        "💬 *توضیحات شما*\n\nلطفاً پیام خود را بنویسید \(توضیح دهید مشکل چیست یا چه اتفاقی افتاده\):",
+        parse_mode="MarkdownV2"
+    )
+    return WAITING_FOR_CONCERN_MESSAGE
+
+async def receive_concern_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive the custom concern message."""
+    text = update.message.text
+    target_id = context.user_data.get('concern_target_id')
+    user = update.effective_user
+    
+    if not target_id:
+        await update.message.reply_text("⚠️ خطا در پردازش. لطفاً مجدد تلاش کنید.")
+        return ConversationHandler.END
+        
+    async with get_db() as session:
+        # Get target info
+        target = (await session.execute(
+            select(InstagramTarget).where(InstagramTarget.id == target_id)
+        )).scalar_one_or_none()
+        
+        # Notify Admins
+        from src.database.models import Admin
+        admins = (await session.execute(select(Admin))).scalars().all()
+        
+        for admin in admins:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin.telegram_id,
+                    text=f"📨 *پیام کاربر (مشکل صفحه)*\n\n👤 کاربر: {user.mention_html()}\nTarget: @{target.ig_handle if target else 'Unknown'}\n\n💬 پیام:\n{text}",
+                    parse_mode="HTML"
+                )
+            except Exception:
+                pass
+
+    await update.message.reply_text(
+        "✅ پیام شما برای ادمین‌ها ارسال شد.\nممنون از گزارش شما 🙏",
+        reply_markup=Keyboards.back_to_sandisi() # Or back to list?
+    )
+    return ConversationHandler.END
+
+
+async def cancel_concern(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel concern flow."""
+    query = update.callback_query
+    await query.answer()
+    
+    # Return to List
+    # We need to render the list. 
+    # Calling show_targets_list requires 'targets_filter' in user_data which should persist.
+    await show_targets_list(update, context)
+    return ConversationHandler.END
+
+# Don't forget import ConversationHandler, filters, MessageHandler
+from telegram.ext import ConversationHandler, MessageHandler, filters
+
+concern_conversation = ConversationHandler(
+    entry_points=[
+        CallbackQueryHandler(start_concern_report, pattern=r"^target:report_closed:\d+$")
+    ],
+    states={
+        CHOOSING_CONCERN: [
+            CallbackQueryHandler(concern_closed_handler, pattern=r"^target:concern:closed:\d+$"),
+            CallbackQueryHandler(concern_other_handler, pattern=r"^target:concern:other:\d+$"),
+        ],
+        WAITING_FOR_CONCERN_MESSAGE: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_concern_message)
+        ]
+    },
+    fallbacks=[
+        CallbackQueryHandler(cancel_concern, pattern=f"^{CallbackData.TARGETS_LIST}$"),
+    ],
+    per_message=False # Important for CallbackQuery mixed with Message
+)
 
 
 # Export handlers
 instagram_handlers = [
     CallbackQueryHandler(show_report_sandisi_menu, pattern=f"^{CallbackData.MENU_TARGETS}$"),
+    CallbackQueryHandler(show_filter_menu, pattern=f"^{CallbackData.FILTER_MENU}$"),
     CallbackQueryHandler(show_targets_list, pattern=f"^{CallbackData.TARGETS_LIST}$"),
+    CallbackQueryHandler(show_targets_list, pattern=f"^{CallbackData.FILTER_NEW}$"),
+    CallbackQueryHandler(show_targets_list, pattern=f"^{CallbackData.FILTER_REPORTED}$"),
+    CallbackQueryHandler(show_targets_list, pattern=f"^{CallbackData.FILTER_ALL}$"),
     CallbackQueryHandler(show_targets_page, pattern=r"^targets:page:\d+$"),
     CallbackQueryHandler(view_target, pattern=r"^target:view:\d+$"),
     CallbackQueryHandler(show_template, pattern=r"^target:template:\d+$"),
     CallbackQueryHandler(i_reported, pattern=r"^target:reported:\d+$"),
+    concern_conversation,
 ]

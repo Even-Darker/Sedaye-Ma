@@ -29,12 +29,14 @@ async def show_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         if not announcements:
             text = f"{Messages.ANNOUNCEMENTS_HEADER}\n\n{Messages.ANNOUNCEMENTS_EMPTY}"
-            markup = Keyboards.back_to_main()
+            # markup = Keyboards.back_to_main()
             
             if query:
-                await query.edit_message_text(text, parse_mode="MarkdownV2", reply_markup=markup)
+                # await query.edit_message_text(text, parse_mode="MarkdownV2", reply_markup=markup)
+                await query.edit_message_text(text, parse_mode="MarkdownV2")
             else:
-                await update.message.reply_text(text, parse_mode="MarkdownV2", reply_markup=markup)
+                # await update.message.reply_text(text, parse_mode="MarkdownV2", reply_markup=markup)
+                await update.message.reply_text(text, parse_mode="MarkdownV2")
             return
         
         # Show the latest announcement

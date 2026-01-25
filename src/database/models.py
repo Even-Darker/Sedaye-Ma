@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Text, Boolean, 
-    DateTime, ForeignKey, JSON, Enum as SQLEnum
+    DateTime, ForeignKey, JSON, Enum as SQLEnum, UniqueConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 import enum
@@ -278,5 +278,29 @@ class NotificationPreference(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+# ═══════════════════════════════════════════════════════════════
+# USER REPORT LOG (HASHED FOR PRIVACY)
+# ═══════════════════════════════════════════════════════════════
+
+class UserReportLog(Base):
+    """
+    Tracks which users have reported which targets to prevent duplicates.
+    STORES HASHED IDS ONLY. REVERSIBLE ONLY WITH SERVER-SIDE SALT.
+    """
+    __tablename__ = "user_report_logs"
+    
+    id = Column(Integer, primary_key=True)
+    target_id = Column(Integer, ForeignKey("instagram_targets.id"), nullable=False)
+    
+    # SHA256(user_id + salt)
+    user_hash = Column(String(64), nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Ensure one report per user per target
+    __table_args__ = (
+        UniqueConstraint('target_id', 'user_hash', name='uq_target_user_hash'),
+    )
+    
     def __repr__(self):
-        return f"<NotificationPreference(id={self.id})>"
+        return f"<ReportLog(target={self.target_id})>"

@@ -27,25 +27,26 @@ _Your data is never stored\\._
 Made with ❤️ for the great people of Iran
 """
     
-    START_BUTTON = "🚀 شروع کنید"
     
     # ═══════════════════════════════════════════════════════════════
     # MAIN MENU
     # ═══════════════════════════════════════════════════════════════
-    
+    # User keys
+    START_BUTTON = "💥 شروع مبارزه"
     MAIN_MENU_HEADER = "📋 *منوی اصلی*"
     
-    MENU_TARGETS = "🧃 ریپورت ساندیسی"
-    MENU_VICTORIES = "🏆 تالار افتخار"
-    MENU_STATS = "📊 آمار زنده"
+    MENU_TARGETS = "🎯 گزارش ساندیسی"
+    MENU_VICTORIES = "🏆 دیوار پیروزی"
+    MENU_STATS = "📊 آمار ما"
     MENU_ANNOUNCEMENTS = "📢 اطلاعیه‌ها"
-    MENU_PETITIONS = "✊ پتیشن‌ها"
-    MENU_SOLIDARITY = "💬 صدای شما"
-    MENU_RESOURCES = "📚 راهنما و منابع"
+    MENU_PETITIONS = "📝 کارزارها"
+    MENU_SOLIDARITY = "✍️ پیام همبستگی"
+    MENU_RESOURCES = "📚 راهنمای امنیت"
     MENU_SETTINGS = "⚙️ تنظیمات"
     
     BACK_BUTTON = "🔙 بازگشت"
-    
+    REPORT_BUTTON = "🚨 گزارش صفحه"
+    I_REPORTED_BUTTON = "✅ گزارش دادم"
     # ═══════════════════════════════════════════════════════════════
     # INSTAGRAM TARGETS
     # ═══════════════════════════════════════════════════════════════

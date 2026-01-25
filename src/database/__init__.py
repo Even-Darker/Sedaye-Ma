@@ -10,6 +10,7 @@ from .models import (
     SolidarityMessage,
     ReportTemplate,
     NotificationPreference,
+    UserReportLog,
 )
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     'SolidarityMessage',
     'ReportTemplate',
     'NotificationPreference',
+    'UserReportLog',
 ]

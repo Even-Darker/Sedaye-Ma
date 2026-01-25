@@ -21,6 +21,7 @@ class CallbackData:
     # Navigation
     BACK_MAIN = "nav:main"
     BACK_SANDISI = "nav:sandisi"
+    BACK_FILTER = "nav:filter"
     BACK = "nav:back"
     
     # User suggest target
@@ -39,8 +40,17 @@ class CallbackData:
     TARGET_REPORT = "target:report:{id}"
     TARGET_TEMPLATE = "target:template:{id}"
     TARGET_I_REPORTED = "target:reported:{id}"
+    TARGET_REPORT_CLOSED = "target:report_closed:{id}" # Legacy (mapped to problem button)
+    TARGET_CONCERN_CLOSED = "target:concern:closed:{id}"
+    TARGET_CONCERN_OTHER = "target:concern:other:{id}"
     TARGETS_SORT = "targets:sort:{by}"
     TARGETS_PAGE = "targets:page:{page}"
+    
+    # Filtering
+    FILTER_MENU = "targets:filter_menu"
+    FILTER_NEW = "targets:filter:new"
+    FILTER_REPORTED = "targets:filter:reported"
+    FILTER_ALL = "targets:filter:all"
     
     # Victories
     VICTORIES_ALL = "victories:all"
@@ -89,6 +99,9 @@ class CallbackData:
     
     ADMIN_APPROVE_MSG = "admin:approve_msg:{id}"
     ADMIN_REJECT_MSG = "admin:reject_msg:{id}"
+    
+    ADMIN_CONFIRM_CLOSED_YES = "admin:closed:yes:{id}"
+    ADMIN_CONFIRM_CLOSED_NO = "admin:closed:no:{id}"
     
     ADMIN_ADD_ADMIN = "admin:add_admin"
     ADMIN_REMOVE_ADMIN = "admin:remove_admin:{id}"
@@ -153,12 +166,23 @@ class Keyboards:
     def report_sandisi_menu() -> InlineKeyboardMarkup:
         """Submenu for Report Sandisi features."""
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎯 لیست ساندیسی‌ها", callback_data=CallbackData.TARGETS_LIST)],
+            [InlineKeyboardButton("🎯 لیست ساندیسی‌ها", callback_data=CallbackData.FILTER_MENU)],
             [InlineKeyboardButton("🧃 معرفی ساندیس خور", callback_data=CallbackData.SUGGEST_TARGET)],
             [
                 InlineKeyboardButton("✌️ گزارش موفقیت", callback_data=CallbackData.SUGGEST_REMOVAL),
                 InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)
             ],
+        ])
+    
+    @staticmethod
+    def targets_filter_menu() -> InlineKeyboardMarkup:
+        """Menu to filter targets (New vs Reported vs All)."""
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("✅ قدیمی", callback_data=CallbackData.FILTER_REPORTED),
+                InlineKeyboardButton("🧃 جدید", callback_data=CallbackData.FILTER_NEW),
+            ],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)],
         ])
     
     @staticmethod
@@ -188,12 +212,12 @@ class Keyboards:
     def target_actions(target_id: int, ig_handle: str) -> InlineKeyboardMarkup:
         """Action buttons for a target."""
         return InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton(
-                    Messages.REPORT_BUTTON, 
-                    callback_data=CallbackData.TARGET_TEMPLATE.format(id=target_id)
-                ),
-            ],
+            # [
+            #     InlineKeyboardButton(
+            #         Messages.REPORT_BUTTON, 
+            #         callback_data=CallbackData.TARGET_TEMPLATE.format(id=target_id)
+            #     ),
+            # ],
             [
                 InlineKeyboardButton(
                     Messages.OPEN_PROFILE_BUTTON, 
@@ -206,7 +230,7 @@ class Keyboards:
                     callback_data=CallbackData.TARGET_I_REPORTED.format(id=target_id)
                 ),
             ],
-            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.MENU_TARGETS)]
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.TARGETS_LIST)]
         ])
     
     @staticmethod
@@ -216,13 +240,30 @@ class Keyboards:
         
         for target in targets:
             priority_emoji = "🔴" if target.priority <= 3 else "🟡" if target.priority <= 6 else "🟢"
+            # Row 2: Quick Actions
             buttons.append([
                 InlineKeyboardButton(
-                    f"{priority_emoji} @{target.ig_handle} ({target.anonymous_report_count})",
-                    callback_data=CallbackData.TARGET_VIEW.format(id=target.id)
-                )
+                    f"{priority_emoji} @{target.ig_handle}",
+                    url=f"https://instagram.com/{target.ig_handle}"
+                ),
+                InlineKeyboardButton(
+                    "مشکل داره",   # "Concerns" 
+                    callback_data=CallbackData.TARGET_REPORT_CLOSED.format(id=target.id)
+                ),
+                InlineKeyboardButton(
+                    Messages.I_REPORTED_BUTTON, 
+                    callback_data=CallbackData.TARGET_I_REPORTED.format(id=target.id)
+                ),
             ])
-        
+            
+            # Add spacer or separator logic if needed, but for now lists are enough.
+            # (Note: Original View/More button is replaced by direct link + actions)
+            # If "View details" is still needed (e.g. for reasons/stats), maybe add it?
+            # User request implied clicking handle opens profile. 
+            # Stats are visible in text? No, text is just header.
+            # Standard list item text was: "🔴 @handle (count)"
+            # Now it's a button.
+            
         # Pagination
         nav_buttons = []
         if page > 0:
@@ -232,7 +273,7 @@ class Keyboards:
         if nav_buttons:
             buttons.append(nav_buttons)
         
-        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_FILTER)])
         
         return InlineKeyboardMarkup(buttons)
     
@@ -389,4 +430,25 @@ class Keyboards:
                 InlineKeyboardButton("✅ تأیید", callback_data=CallbackData.ADMIN_APPROVE_MSG.format(id=message_id)),
                 InlineKeyboardButton("❌ رد", callback_data=CallbackData.ADMIN_REJECT_MSG.format(id=message_id)),
             ]
+        ])
+
+    @staticmethod
+    def admin_confirm_closed(target_id: int) -> InlineKeyboardMarkup:
+        """Admin confirmation for closed report."""
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🏆 تایید بسته شدن", callback_data=CallbackData.ADMIN_CONFIRM_CLOSED_YES.format(id=target_id)),
+            ],
+            [
+                InlineKeyboardButton("❌ رد کردن", callback_data=CallbackData.ADMIN_CONFIRM_CLOSED_NO.format(id=target_id)),
+            ]
+        ])
+
+    @staticmethod
+    def concern_menu(target_id: int) -> InlineKeyboardMarkup:
+        """Menu for choosing concern type."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("🏆 صفحه بسته شده", callback_data=CallbackData.TARGET_CONCERN_CLOSED.format(id=target_id))],
+            [InlineKeyboardButton("💬 موارد دیگر", callback_data=CallbackData.TARGET_CONCERN_OTHER.format(id=target_id))],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.TARGETS_LIST)], 
         ])
