@@ -27,9 +27,16 @@ ADDING_ANNOUNCEMENT_CONTENT = 4
 ADDING_ADMIN_ID = 5
 
 
-def is_super_admin(user_id: int) -> bool:
-    """Check if user is a super admin."""
-    return user_id in settings.super_admin_ids
+async def is_super_admin(user_id: int) -> bool:
+    """Check if user is a super admin (Database only)."""
+    async with get_db() as session:
+        result = await session.execute(
+            select(Admin).where(
+                Admin.telegram_id == user_id,
+                Admin.role == AdminRole.SUPER_ADMIN
+            )
+        )
+        return result.scalar_one_or_none() is not None
 
 
 @admin_required
@@ -40,7 +47,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger = logging.getLogger(__name__)
 
     user_id = update.effective_user.id
-    super_admin = is_super_admin(user_id)
+    super_admin = await is_super_admin(user_id)
     
     pending_count = 0
     try:
@@ -190,7 +197,7 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
             f"✅ *{len(new_handles)} نام کاربری یافت شد*\n\n"
             f"{preview}\n\n"
             f"آیا مطمئن هستید؟\n\n"
-            "حالا دلایل گزارش را برای **همه این موارد** وارد کنید \\(اگر دلیل خاصی ندارید بزنید ساندیس\\!\\):",
+            "حالا دلایل گزارش را برای **همه این موارد** تاسپ کنید \\(اگر دلیل خاصی ندارید تایپ کنید ساندیس\\!\\):",
             parse_mode="MarkdownV2",
             disable_web_page_preview=True
         )
@@ -256,7 +263,7 @@ async def receive_target_reasons(update: Update, context: ContextTypes.DEFAULT_T
         dup_text = f"\n_({skipped_count} تکراری نادیده گرفته شد)_" if skipped_count > 0 else ""
         msg = (
             f"✅ *{added_count} صفحه اضافه شد\\!*{dup_text}\n\n"
-            f"📋 دلایل: {Formatters.escape_markdown(', '.join(reasons))}"
+            f"📄 دلایل: {Formatters.escape_markdown(', '.join(reasons))}\n"
         )
         
     await update.message.reply_text(
@@ -460,7 +467,7 @@ async def manage_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             message += "_هیچ ادمینی ثبت نشده است\\._\n"
         
-        message += f"\n💡 _ادمین‌های اصلی \\(SUPER\\) در فایل \\.env تعریف شده‌اند و قابل حذف نیستند\\._"
+        message += f"\n💡 _ادمین‌های اصلی \\(SUPER\\) قابل حذف نیستند\\._"
         
         await query.edit_message_text(
             message,
@@ -477,27 +484,32 @@ async def start_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(
         "➕ *افزودن ادمین جدید*\n\n"
-        "لطفاً شناسه عددی تلگرام \\(Telegram ID\\) کاربر را وارد کنید:\n\n"
-        "_کاربر می‌تواند شناسه خود را از @userinfobot بگیرد\\._",
+        "لطفاً نام کاربری \\(Username\\) کاربر را وارد کنید:\n"
+        "مثال: @username",
         parse_mode="MarkdownV2"
     )
     
     return ADDING_ADMIN_ID
 
 
-async def receive_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Receive admin ID and save."""
-    from src.utils.validators import Validators
-    
+async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive admin username and save."""
     text = update.message.text.strip()
     user_id = update.effective_user.id
     
-    # Validate Telegram ID
-    is_valid, new_admin_id, error = Validators.validate_telegram_id(text)
-    if not is_valid:
+    # Remove @ if present
+    username = text[1:] if text.startswith("@") else text
+    
+    # Validate Username
+    try:
+         # Need to handle async get_chat
+         chat = await context.bot.get_chat(username)
+         new_admin_id = chat.id
+    except Exception:
         await update.message.reply_text(
-            f"⚠️ {Formatters.escape_markdown(error or 'Invalid ID')}\n\n"
-            "لطفاً یک شناسه معتبر وارد کنید:",
+            "⚠️ *کاربر یافت نشد*\n\n"
+            "لطفاً مطمئن شوید نام کاربری صحیح است و کاربر ربات را استارت کرده است\\.\n"
+            "لطفاً دوباره امتحان کنید:",
             parse_mode="MarkdownV2"
         )
         return ADDING_ADMIN_ID
@@ -518,25 +530,25 @@ async def receive_admin_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if result.scalar_one_or_none():
             await update.message.reply_text(
                 "⚠️ این کاربر قبلاً به عنوان ادمین ثبت شده است\\.",
-                parse_mode="MarkdownV2",
-                reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(user_id))
+                parse_mode="MarkdownV2"
             )
-            return ConversationHandler.END
+            return ADDING_ADMIN_ID
         
         # Add new admin
         new_admin = Admin(
             telegram_id=new_admin_id,
-            role=AdminRole.ADMIN
+            role=AdminRole.MODERATOR # Default role
         )
         session.add(new_admin)
         await session.commit()
-    
+        
     await update.message.reply_text(
-        f"✅ کاربر {new_admin_id} با موفقیت به عنوان ادمین اضافه شد\\!",
+        f"✅ *ادمین جدید اضافه شد*\n\n"
+        f"کاربر: @{Formatters.escape_markdown(username)}\n"
+        f"شناسه: `{new_admin_id}`",
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(user_id))
+        reply_markup=Keyboards.admin_menu(is_super_admin=True) # Assuming adder is super
     )
-    
     return ConversationHandler.END
 
 
@@ -557,8 +569,8 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ ادمین یافت نشد", show_alert=True)
             return
         
-        # Don't allow removing super admins defined in env
-        if admin.telegram_id in settings.super_admin_ids:
+        # Don't allow removing super admins
+        if admin.role == AdminRole.SUPER_ADMIN:
             await query.answer("⛔ ادمین‌های اصلی قابل حذف نیستند", show_alert=True)
             return
         
@@ -581,7 +593,7 @@ async def cancel_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text(
         Messages.ADMIN_HEADER,
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(user_id))
+        reply_markup=Keyboards.admin_menu(is_super_admin=await is_super_admin(user_id))
     )
     
     return ConversationHandler.END
@@ -658,7 +670,7 @@ add_admin_conversation = ConversationHandler(
     ],
     states={
         ADDING_ADMIN_ID: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex(MENU_PATTERN), receive_admin_id),
+            MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex(MENU_PATTERN), receive_admin_username),
         ],
     },
     fallbacks=[

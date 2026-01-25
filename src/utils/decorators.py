@@ -21,11 +21,7 @@ def admin_required(func):
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user_id = update.effective_user.id
         
-        # Check super admin list first
-        if user_id in settings.super_admin_ids:
-            return await func(update, context, *args, **kwargs)
-        
-        # Check database
+        # Check database directly
         async with get_db() as session:
             result = await session.execute(
                 select(Admin).where(Admin.telegram_id == user_id)
@@ -54,9 +50,6 @@ def super_admin_required(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user_id = update.effective_user.id
-        
-        if user_id in settings.super_admin_ids:
-            return await func(update, context, *args, **kwargs)
         
         # Check database for super_admin role
         async with get_db() as session:

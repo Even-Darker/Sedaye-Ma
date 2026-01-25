@@ -35,6 +35,9 @@ async def init_db():
     
     # Seed default report templates
     await seed_report_templates()
+    
+    # Sync Super Admins from Environment
+    await sync_super_admins()
 
 
 async def seed_report_templates():
@@ -91,6 +94,34 @@ async def seed_report_templates():
             if not result.scalar_one_or_none():
                 template = ReportTemplate(**template_data)
                 session.add(template)
+        
+        await session.commit()
+
+
+async def sync_super_admins():
+    """Sync super admins from environment settings to database."""
+    from .models import Admin, AdminRole
+    from sqlalchemy import select
+    
+    if not settings.super_admin_ids:
+        return
+
+    async with AsyncSessionLocal() as session:
+        for user_id in settings.super_admin_ids:
+            # Check if exists
+            result = await session.execute(
+                select(Admin).where(Admin.telegram_id == user_id)
+            )
+            admin = result.scalar_one_or_none()
+            
+            if not admin:
+                # Create new super admin
+                admin = Admin(telegram_id=user_id, role=AdminRole.SUPER_ADMIN)
+                session.add(admin)
+            elif admin.role != AdminRole.SUPER_ADMIN:
+                # Promote existing admin
+                admin.role = AdminRole.SUPER_ADMIN
+                session.add(admin)
         
         await session.commit()
 
