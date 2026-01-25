@@ -24,6 +24,8 @@ class CallbackData:
     
     # User suggest target
     SUGGEST_TARGET = "suggest:target"
+    SUGGEST_CONFIRM_YES = "suggest:confirm:yes"
+    SUGGEST_CONFIRM_EDIT = "suggest:confirm:edit"
     
     # Targets
     TARGET_VIEW = "target:view:{id}"
@@ -126,6 +128,15 @@ class Keyboards:
             buttons.append([InlineKeyboardButton("🔐 پنل مدیریت", callback_data="admin:panel")])
         return InlineKeyboardMarkup(buttons)
     
+    @staticmethod
+    def confirm_suggest_handle() -> InlineKeyboardMarkup:
+        """Keyboard to confirm suggested handle."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ صحیح است، ادامه", callback_data=CallbackData.SUGGEST_CONFIRM_YES)],
+            [InlineKeyboardButton("✏️ ویرایش نام کاربری", callback_data=CallbackData.SUGGEST_CONFIRM_EDIT)],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)],
+        ])
+
     @staticmethod
     def back_to_main() -> InlineKeyboardMarkup:
         """Back to main menu button."""
