@@ -196,7 +196,7 @@ async def confirm_handle_action(update: Update, context: ContextTypes.DEFAULT_TY
     if action == CallbackData.SUGGEST_CONFIRM_EDIT:
         await query.edit_message_text(
             "✏️ *ویرایش نام کاربری*\n\n"
-            "لطفاً handle (ها) صحیح را وارد کنید:",
+            "لطفاً handle \\(ها\\) صحیح را وارد کنید:",
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.back_to_sandisi()
         )

@@ -35,33 +35,48 @@ def is_super_admin(user_id: int) -> bool:
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show admin panel."""
     from sqlalchemy import func
-    
+    import logging
+    logger = logging.getLogger(__name__)
+
     user_id = update.effective_user.id
     super_admin = is_super_admin(user_id)
     
-    # Get pending targets count
-    async with get_db() as session:
-        result = await session.execute(
-            select(func.count(InstagramTarget.id)).where(
-                InstagramTarget.status == TargetStatus.PENDING
+    pending_count = 0
+    try:
+        # Get pending targets count
+        async with get_db() as session:
+            result = await session.execute(
+                select(func.count(InstagramTarget.id)).where(
+                    InstagramTarget.status == TargetStatus.PENDING
+                )
             )
-        )
-        pending_count = result.scalar() or 0
-    
-    if update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        await query.edit_message_text(
-            Messages.ADMIN_HEADER,
-            parse_mode="MarkdownV2",
-            reply_markup=Keyboards.admin_menu(is_super_admin=super_admin, pending_count=pending_count)
-        )
-    else:
-        await update.message.reply_text(
-            Messages.ADMIN_HEADER,
-            parse_mode="MarkdownV2",
-            reply_markup=Keyboards.admin_menu(is_super_admin=super_admin, pending_count=pending_count)
-        )
+            pending_count = result.scalar() or 0
+    except Exception as e:
+        logger.error(f"Error fetching pending count: {e}")
+        # Continue without count
+        
+    try:
+        if update.callback_query:
+            query = update.callback_query
+            await query.answer()
+            await query.edit_message_text(
+                Messages.ADMIN_HEADER,
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.admin_menu(is_super_admin=super_admin, pending_count=pending_count)
+            )
+        else:
+            await update.message.reply_text(
+                Messages.ADMIN_HEADER,
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.admin_menu(is_super_admin=super_admin, pending_count=pending_count)
+            )
+    except Exception as e:
+        logger.error(f"Error showing admin panel: {e}")
+        # Fallback
+        if update.callback_query:
+            await update.callback_query.answer("⚠️ خطا در باز کردن پنل", show_alert=True)
+        else:
+            await update.message.reply_text("⚠️ خطا در پردازش درخواست")
 
 
 @admin_required
@@ -734,6 +749,7 @@ async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         # Update status
         target.status = TargetStatus.REMOVED
+        target.removed_at = datetime.utcnow()
         
         # Create Victory record
         victory = Victory(
@@ -748,6 +764,55 @@ async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎉 *پیروزی ثبت شد!*\n\n"
             f"صفحه @{Formatters.escape_markdown(target.ig_handle)} به لیست پیروزی‌ها اضافه شد.\n"
             f"آمار ربات به‌روزرسانی شد.",
+            parse_mode="MarkdownV2"
+        )
+
+
+@admin_required
+async def admin_process_closed_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Process closed report confirmation (Yes/No)."""
+    query = update.callback_query
+    action = query.data.split(":")[2] # 'yes' or 'no'
+    target_id = int(query.data.split(":")[-1])
+    
+    if action == "no":
+        await query.answer("❌ گزارش رد شد (تغییری ایجاد نشد)")
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.edit_message_text(f"{query.message.text}\n\n❌ توسط ادمین رد شد.")
+        return
+
+    # Action YES
+    async with get_db() as session:
+        result = await session.execute(
+            select(InstagramTarget).where(InstagramTarget.id == target_id)
+        )
+        target = result.scalar_one_or_none()
+        
+        if not target:
+            await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
+            await query.edit_message_text("❌ هدف پیدا نشد")
+            return
+            
+        if target.status == TargetStatus.REMOVED:
+            await query.answer("⚠️ قبلاً ثبت شده", show_alert=True)
+            await query.edit_message_text(f"{query.message.text}\n\n✅ قبلاً ثبت شده بود.")
+            return
+
+        # Update status
+        target.status = TargetStatus.REMOVED
+        target.removed_at = datetime.utcnow()
+        
+        # Create Victory
+        victory = Victory(
+            target_id=target.id,
+            victory_date=datetime.utcnow()
+        )
+        session.add(victory)
+        await session.commit()
+        
+        await query.answer("🏆 پیروزی ثبت شد!", show_alert=True)
+        await query.edit_message_text(
+            f"{query.message.text}\n\n🏆 *تایید شد: پیروزی ثبت شد!*",
             parse_mode="MarkdownV2"
         )
 
@@ -769,4 +834,7 @@ admin_handlers = [
     CallbackQueryHandler(show_pending_targets, pattern=f"^{CallbackData.ADMIN_PENDING_TARGETS}$"),
     CallbackQueryHandler(approve_target, pattern=r"^admin:approve_target:\d+$"),
     CallbackQueryHandler(reject_target, pattern=r"^admin:reject_target:\d+$"),
+    CallbackQueryHandler(reject_target, pattern=r"^admin:reject_target:\d+$"),
+    # Quick Action Confirmation
+    CallbackQueryHandler(admin_process_closed_report, pattern=r"^admin:closed:(yes|no):\d+$"),
 ]

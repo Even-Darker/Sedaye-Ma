@@ -32,8 +32,12 @@ from src.handlers import (
 # Configure logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+
     level=logging.INFO
 )
+# Suppress httpx logs (telegram polling)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 

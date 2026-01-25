@@ -139,8 +139,11 @@ async def receive_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cancel_write(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel writing message."""
-    query = update.callback_query
-    await query.answer()
+    from src.handlers.menu import back_to_main
+    
+    # Navigate back to main menu
+    await back_to_main(update, context)
+    
     return ConversationHandler.END
 
 

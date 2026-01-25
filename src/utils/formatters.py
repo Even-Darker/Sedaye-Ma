@@ -61,13 +61,21 @@ class Formatters:
         
         followers = Formatters.format_number(target.followers_count)
         
+        # Improved Layout:
+        # Header (Priority)
+        # Handle + Name
+        # Stats Row (Clean icons)
+        # Progress Bar
+        # Reasons
+        
         return f"""
 {priority_label}
 
 *@{Formatters.escape_markdown(target.ig_handle)}*
 {Formatters.escape_markdown(target.display_name or '')}
 
-👥 {followers} {Messages.TARGET_FOLLOWERS} \\| 📊 {report_count} {Messages.TARGET_REPORTS}
+📊 {report_count} {Messages.TARGET_REPORTS}    👥 {followers} {Messages.TARGET_FOLLOWERS}
+
 {progress_bar} {int(progress * 100)}%
 
 🏷️ {reasons if reasons else '\\-'}

@@ -9,6 +9,8 @@ from config import Messages, settings
 from src.utils import Keyboards
 from src.utils.keyboards import CallbackData
 from src.database import get_db, Admin
+# Import from instagram to reuse filter menu display logic
+from src.handlers.instagram import show_filter_menu
 
 
 async def is_user_admin(user_id: int) -> bool:
@@ -49,4 +51,5 @@ async def back_to_report_sandisi(update: Update, context: ContextTypes.DEFAULT_T
 menu_handlers = [
     CallbackQueryHandler(back_to_main, pattern=f"^{CallbackData.BACK_MAIN}$"),
     CallbackQueryHandler(back_to_report_sandisi, pattern=f"^{CallbackData.BACK_SANDISI}$"),
+    CallbackQueryHandler(show_filter_menu, pattern=f"^{CallbackData.BACK_FILTER}$"),
 ]
