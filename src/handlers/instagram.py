@@ -16,7 +16,19 @@ from src.database.models import TargetStatus
 TARGETS_PER_PAGE = 5
 
 
-async def show_targets(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_report_sandisi_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show the Report Sandisi submenu."""
+    query = update.callback_query
+    await query.answer()
+    
+    await query.edit_message_text(
+        Messages.MENU_TARGETS,  # "🧃 ریپورت ساندیسی"
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.report_sandisi_menu()
+    )
+
+
+async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show list of active targets."""
     query = update.callback_query
     await query.answer()
@@ -192,7 +204,8 @@ async def i_reported(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Export handlers
 instagram_handlers = [
-    CallbackQueryHandler(show_targets, pattern=f"^{CallbackData.MENU_TARGETS}$"),
+    CallbackQueryHandler(show_report_sandisi_menu, pattern=f"^{CallbackData.MENU_TARGETS}$"),
+    CallbackQueryHandler(show_targets_list, pattern=f"^{CallbackData.TARGETS_LIST}$"),
     CallbackQueryHandler(show_targets_page, pattern=r"^targets:page:\d+$"),
     CallbackQueryHandler(view_target, pattern=r"^target:view:\d+$"),
     CallbackQueryHandler(show_template, pattern=r"^target:template:\d+$"),

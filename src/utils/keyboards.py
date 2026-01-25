@@ -28,6 +28,7 @@ class CallbackData:
     SUGGEST_CONFIRM_EDIT = "suggest:confirm:edit"
     
     # Targets
+    TARGETS_LIST = "targets:list"
     TARGET_VIEW = "target:view:{id}"
     TARGET_REPORT = "target:report:{id}"
     TARGET_TEMPLATE = "target:template:{id}"
@@ -114,12 +115,9 @@ class Keyboards:
         """Main menu keyboard."""
         buttons = [
             [InlineKeyboardButton(Messages.MENU_TARGETS, callback_data=CallbackData.MENU_TARGETS)],
-            [InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)],
-            [InlineKeyboardButton(Messages.MENU_STATS, callback_data=CallbackData.MENU_STATS)],
             [InlineKeyboardButton(Messages.MENU_ANNOUNCEMENTS, callback_data=CallbackData.MENU_ANNOUNCEMENTS)],
             [InlineKeyboardButton(Messages.MENU_PETITIONS, callback_data=CallbackData.MENU_PETITIONS)],
             [InlineKeyboardButton(Messages.MENU_SOLIDARITY, callback_data=CallbackData.MENU_SOLIDARITY)],
-            [InlineKeyboardButton("➕ پیشنهاد صفحه جدید", callback_data=CallbackData.SUGGEST_TARGET)],
             [InlineKeyboardButton(Messages.MENU_RESOURCES, callback_data=CallbackData.MENU_RESOURCES)],
             [InlineKeyboardButton(Messages.MENU_SETTINGS, callback_data=CallbackData.MENU_SETTINGS)],
         ]
@@ -127,6 +125,17 @@ class Keyboards:
         if is_admin:
             buttons.append([InlineKeyboardButton("🔐 پنل مدیریت", callback_data="admin:panel")])
         return InlineKeyboardMarkup(buttons)
+    
+    @staticmethod
+    def report_sandisi_menu() -> InlineKeyboardMarkup:
+        """Submenu for Report Sandisi features."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("🎯 لیست صفحات", callback_data=CallbackData.TARGETS_LIST)],
+            [InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)],
+            [InlineKeyboardButton(Messages.MENU_STATS, callback_data=CallbackData.MENU_STATS)],
+            [InlineKeyboardButton("➕ پیشنهاد صفحه جدید", callback_data=CallbackData.SUGGEST_TARGET)],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)],
+        ])
     
     @staticmethod
     def confirm_suggest_handle() -> InlineKeyboardMarkup:
