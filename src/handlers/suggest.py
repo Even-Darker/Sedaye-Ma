@@ -132,6 +132,9 @@ async def receive_suggest_handle(update: Update, context: ContextTypes.DEFAULT_T
     # CASE: UNKNOWN (Login Wall / Generic 200) -> Ask User Confirmation
     if not profile.verified:
         ig_link = f"https://instagram.com/{handle}"
+        # FIX: Escape the link text (URL) to be safe in Markdown
+        escaped_link = Formatters.escape_markdown(ig_link)
+        
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ بله، صفحه موجود است", callback_data="confirm_existing")],
             [InlineKeyboardButton("❌ خیر، تصحیح می‌کنم", callback_data="confirm_retry")],
@@ -143,7 +146,7 @@ async def receive_suggest_handle(update: Update, context: ContextTypes.DEFAULT_T
             f"بات نتوانست به طور خودکار وجود صفحه @{Formatters.escape_markdown(handle)} را تأیید کند "
             f"\\(محدودیت اینستاگرام\\)\\.\n\n"
             f"لطفاً لینک زیر را چک کنید؛ اگر صفحه باز می‌شود دکمه «بله» را بزنید:\n"
-            f"🔗 [{ig_link}]({ig_link})",
+            f"🔗 [{escaped_link}]({ig_link})",
             parse_mode="MarkdownV2",
             reply_markup=keyboard,
             disable_web_page_preview=True
