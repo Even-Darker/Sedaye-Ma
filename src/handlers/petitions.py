@@ -15,7 +15,8 @@ from src.database.models import PetitionStatus
 async def show_petitions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show active petitions."""
     query = update.callback_query
-    await query.answer()
+    if query:
+        await query.answer()
     
     async with get_db() as session:
         result = await session.execute(
@@ -27,22 +28,30 @@ async def show_petitions(update: Update, context: ContextTypes.DEFAULT_TYPE):
         petitions = result.scalars().all()
         
         if not petitions:
-            await query.edit_message_text(
-                f"{Messages.PETITIONS_HEADER}\n{Messages.PETITIONS_SUBTITLE}\n\n{Messages.PETITIONS_EMPTY}",
-                parse_mode="MarkdownV2",
-                reply_markup=Keyboards.back_to_main()
-            )
+            text = f"{Messages.PETITIONS_HEADER}\n{Messages.PETITIONS_SUBTITLE}\n\n{Messages.PETITIONS_EMPTY}"
+            markup = Keyboards.back_to_main()
+            if query:
+                await query.edit_message_text(text, parse_mode="MarkdownV2", reply_markup=markup)
+            else:
+                await update.message.reply_text(text, parse_mode="MarkdownV2", reply_markup=markup)
             return
         
         # Show first petition
         petition = petitions[0]
         message = Formatters.format_petition_card(petition)
         
-        await query.edit_message_text(
-            message,
-            parse_mode="MarkdownV2",
-            reply_markup=Keyboards.petition_actions(petition.id, petition.url)
-        )
+        if query:
+            await query.edit_message_text(
+                message,
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.petition_actions(petition.id, petition.url)
+            )
+        else:
+            await update.message.reply_text(
+                message,
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.petition_actions(petition.id, petition.url)
+            )
 
 
 async def view_petition(update: Update, context: ContextTypes.DEFAULT_TYPE):

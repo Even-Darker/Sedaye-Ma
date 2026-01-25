@@ -2,7 +2,7 @@
 Telegram keyboard builders for Sedaye Ma bot.
 All keyboards are defined here for consistency.
 """
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from config import Messages
 
 
@@ -125,6 +125,22 @@ class Keyboards:
         if is_admin:
             buttons.append([InlineKeyboardButton("🔐 پنل مدیریت", callback_data="admin:panel")])
         return InlineKeyboardMarkup(buttons)
+    
+    @staticmethod
+    def main_menu_persistent(is_admin: bool = False) -> ReplyKeyboardMarkup:
+        """Main menu persistent keyboard (Reply Keyboard)."""
+        buttons = [
+            [KeyboardButton(Messages.MENU_TARGETS)],  # Row 1: Report Sandisi (Main)
+            [KeyboardButton(Messages.MENU_ANNOUNCEMENTS), KeyboardButton(Messages.MENU_PETITIONS)],
+            [KeyboardButton(Messages.MENU_SOLIDARITY), KeyboardButton(Messages.MENU_RESOURCES)],
+            [KeyboardButton(Messages.MENU_SETTINGS)]
+        ]
+        
+        if is_admin:
+            buttons.append([KeyboardButton(Messages.ADMIN_HEADER)])  # "🔐 پنل مدیریت" (Make sure this constant matches text)
+            
+        return ReplyKeyboardMarkup(buttons, resize_keyboard=True, persistent=True)
+
     
     @staticmethod
     def report_sandisi_menu() -> InlineKeyboardMarkup:

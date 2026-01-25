@@ -27,7 +27,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         Messages.WELCOME,
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.start()
+        reply_markup=Keyboards.main_menu_persistent(is_admin=is_admin)
     )
 
 
@@ -39,7 +39,7 @@ async def home_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         Messages.MAIN_MENU_HEADER,
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.main_menu(is_admin=is_admin)
+        reply_markup=Keyboards.main_menu_persistent(is_admin=is_admin)
     )
 
 

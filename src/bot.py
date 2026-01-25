@@ -25,7 +25,9 @@ from src.handlers import (
     settings_handlers,
     admin_handlers,
     stats_handlers,
+    stats_handlers,
     suggest_handlers,
+    text_menu_handler,
 )
 
 
@@ -118,6 +120,9 @@ def main():
     # Admin handlers (must be last to not interfere with conversations)
     for handler in admin_handlers:
         application.add_handler(handler)
+        
+    # Text menu handler (must be last to not catch commands or conversation states)
+    application.add_handler(text_menu_handler)
     
     logger.info("✅ All handlers registered!")
     logger.info("🚀 Bot is running... Press Ctrl+C to stop.")

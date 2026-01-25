@@ -20,7 +20,8 @@ WRITING_MESSAGE = 1
 async def show_solidarity(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show solidarity wall with random messages."""
     query = update.callback_query
-    await query.answer()
+    if query:
+        await query.answer()
     
     async with get_db() as session:
         result = await session.execute(
@@ -40,11 +41,18 @@ async def show_solidarity(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             message += "_هنوز پیامی ثبت نشده است\\._"
         
-        await query.edit_message_text(
-            message,
-            parse_mode="MarkdownV2",
-            reply_markup=Keyboards.solidarity_actions()
-        )
+        if query:
+            await query.edit_message_text(
+                message,
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.solidarity_actions()
+            )
+        else:
+            await update.message.reply_text(
+                message,
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.solidarity_actions()
+            )
 
 
 async def load_more_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):

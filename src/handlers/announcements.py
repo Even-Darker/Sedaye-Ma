@@ -14,7 +14,8 @@ from src.database import get_db, Announcement
 async def show_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show announcements list."""
     query = update.callback_query
-    await query.answer()
+    if query:
+        await query.answer()
     
     async with get_db() as session:
         # Get active announcements, pinned first
@@ -27,27 +28,30 @@ async def show_announcements(update: Update, context: ContextTypes.DEFAULT_TYPE)
         announcements = result.scalars().all()
         
         if not announcements:
-            await query.edit_message_text(
-                f"{Messages.ANNOUNCEMENTS_HEADER}\n\n{Messages.ANNOUNCEMENTS_EMPTY}",
-                parse_mode="MarkdownV2",
-                reply_markup=Keyboards.back_to_main()
-            )
+            text = f"{Messages.ANNOUNCEMENTS_HEADER}\n\n{Messages.ANNOUNCEMENTS_EMPTY}"
+            markup = Keyboards.back_to_main()
+            
+            if query:
+                await query.edit_message_text(text, parse_mode="MarkdownV2", reply_markup=markup)
+            else:
+                await update.message.reply_text(text, parse_mode="MarkdownV2", reply_markup=markup)
             return
         
         # Show the latest announcement
         announcement = announcements[0]
         message = Formatters.format_announcement(announcement)
         
-        await query.edit_message_text(
-            message,
-            parse_mode="MarkdownV2",
-            reply_markup=Keyboards.announcement_reactions(
-                announcement.id,
-                fire=announcement.reaction_fire,
-                heart=announcement.reaction_heart,
-                fist=announcement.reaction_fist
-            )
+        reply_markup = Keyboards.announcement_reactions(
+            announcement.id,
+            fire=announcement.reaction_fire,
+            heart=announcement.reaction_heart,
+            fist=announcement.reaction_fist
         )
+        
+        if query:
+            await query.edit_message_text(message, parse_mode="MarkdownV2", reply_markup=reply_markup)
+        else:
+            await update.message.reply_text(message, parse_mode="MarkdownV2", reply_markup=reply_markup)
 
 
 async def react_to_announcement(update: Update, context: ContextTypes.DEFAULT_TYPE):
