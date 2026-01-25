@@ -54,7 +54,7 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 f"{Messages.TARGETS_HEADER}\n\n{Messages.TARGETS_EMPTY}",
                 parse_mode="MarkdownV2",
-                reply_markup=Keyboards.back_to_main()
+                reply_markup=Keyboards.back_to_sandisi()
             )
             return
         
