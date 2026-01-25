@@ -1,0 +1,341 @@
+"""
+Telegram keyboard builders for Sedaye Ma bot.
+All keyboards are defined here for consistency.
+"""
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from config import Messages
+
+
+class CallbackData:
+    """Callback data constants."""
+    # Main menu
+    MENU_TARGETS = "menu:targets"
+    MENU_VICTORIES = "menu:victories"
+    MENU_STATS = "menu:stats"
+    MENU_ANNOUNCEMENTS = "menu:announcements"
+    MENU_PETITIONS = "menu:petitions"
+    MENU_SOLIDARITY = "menu:solidarity"
+    MENU_RESOURCES = "menu:resources"
+    MENU_SETTINGS = "menu:settings"
+    
+    # Navigation
+    BACK_MAIN = "nav:main"
+    BACK = "nav:back"
+    
+    # User suggest target
+    SUGGEST_TARGET = "suggest:target"
+    
+    # Targets
+    TARGET_VIEW = "target:view:{id}"
+    TARGET_REPORT = "target:report:{id}"
+    TARGET_TEMPLATE = "target:template:{id}"
+    TARGET_I_REPORTED = "target:reported:{id}"
+    TARGETS_SORT = "targets:sort:{by}"
+    TARGETS_PAGE = "targets:page:{page}"
+    
+    # Victories
+    VICTORIES_ALL = "victories:all"
+    VICTORIES_CELEBRATE = "victories:celebrate"
+    VICTORIES_PAGE = "victories:page:{page}"
+    
+    # Announcements
+    ANNOUNCEMENT_VIEW = "announce:view:{id}"
+    ANNOUNCEMENT_REACT = "announce:react:{id}:{emoji}"
+    
+    # Petitions
+    PETITION_VIEW = "petition:view:{id}"
+    PETITION_SIGN = "petition:sign:{id}"
+    PETITIONS_PAGE = "petitions:page:{page}"
+    
+    # Solidarity
+    SOLIDARITY_WRITE = "solidarity:write"
+    SOLIDARITY_MORE = "solidarity:more"
+    SOLIDARITY_HEART = "solidarity:heart:{id}"
+    
+    # Resources
+    RESOURCE_REPORT_IG = "resource:report_ig"
+    RESOURCE_SAFETY = "resource:safety"
+    RESOURCE_TEMPLATES = "resource:templates"
+    RESOURCE_SUPPORT = "resource:support"
+    TEMPLATE_VIEW = "template:view:{type}"
+    
+    # Settings
+    SETTINGS_NOTIF = "settings:notif"
+    NOTIF_TOGGLE = "notif:toggle:{type}"
+    
+    # Admin
+    ADMIN_ADD_TARGET = "admin:add_target"
+    ADMIN_MANAGE_TARGETS = "admin:manage_targets"
+    ADMIN_ANNOUNCEMENTS = "admin:announcements"
+    ADMIN_PETITIONS = "admin:petitions"
+    ADMIN_SOLIDARITY = "admin:solidarity"
+    ADMIN_STATS = "admin:stats"
+    ADMIN_MANAGE_ADMINS = "admin:manage_admins"
+    ADMIN_PENDING_TARGETS = "admin:pending_targets"
+    
+    ADMIN_TARGET_EDIT = "admin:target:edit:{id}"
+    ADMIN_TARGET_REMOVE = "admin:target:remove:{id}"
+    ADMIN_TARGET_VICTORY = "admin:target:victory:{id}"
+    
+    ADMIN_APPROVE_MSG = "admin:approve_msg:{id}"
+    ADMIN_REJECT_MSG = "admin:reject_msg:{id}"
+    
+    ADMIN_ADD_ADMIN = "admin:add_admin"
+    ADMIN_REMOVE_ADMIN = "admin:remove_admin:{id}"
+
+
+# Persistent bottom button text
+MAIN_MENU_BUTTON = "🏠 منوی اصلی"
+
+
+class Keyboards:
+    """Keyboard builders for the bot."""
+    
+    @staticmethod
+    def persistent_menu() -> ReplyKeyboardMarkup:
+        """Persistent keyboard with main menu shortcut."""
+        return ReplyKeyboardMarkup(
+            [[KeyboardButton(MAIN_MENU_BUTTON)]],
+            resize_keyboard=True,
+            is_persistent=True
+        )
+    
+    @staticmethod
+    def start() -> InlineKeyboardMarkup:
+        """Start button keyboard."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(Messages.START_BUTTON, callback_data="start")]
+        ])
+    
+    @staticmethod
+    def main_menu(is_admin: bool = False) -> InlineKeyboardMarkup:
+        """Main menu keyboard."""
+        buttons = [
+            [InlineKeyboardButton(Messages.MENU_TARGETS, callback_data=CallbackData.MENU_TARGETS)],
+            [InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)],
+            [InlineKeyboardButton(Messages.MENU_STATS, callback_data=CallbackData.MENU_STATS)],
+            [InlineKeyboardButton(Messages.MENU_ANNOUNCEMENTS, callback_data=CallbackData.MENU_ANNOUNCEMENTS)],
+            [InlineKeyboardButton(Messages.MENU_PETITIONS, callback_data=CallbackData.MENU_PETITIONS)],
+            [InlineKeyboardButton(Messages.MENU_SOLIDARITY, callback_data=CallbackData.MENU_SOLIDARITY)],
+            [InlineKeyboardButton("➕ پیشنهاد صفحه جدید", callback_data=CallbackData.SUGGEST_TARGET)],
+            [InlineKeyboardButton(Messages.MENU_RESOURCES, callback_data=CallbackData.MENU_RESOURCES)],
+            [InlineKeyboardButton(Messages.MENU_SETTINGS, callback_data=CallbackData.MENU_SETTINGS)],
+        ]
+        # Admin only: show admin panel button
+        if is_admin:
+            buttons.append([InlineKeyboardButton("🔐 پنل مدیریت", callback_data="admin:panel")])
+        return InlineKeyboardMarkup(buttons)
+    
+    @staticmethod
+    def back_to_main() -> InlineKeyboardMarkup:
+        """Back to main menu button."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+        ])
+    
+    @staticmethod
+    def target_actions(target_id: int, ig_handle: str) -> InlineKeyboardMarkup:
+        """Action buttons for a target."""
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    Messages.REPORT_BUTTON, 
+                    callback_data=CallbackData.TARGET_TEMPLATE.format(id=target_id)
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    Messages.OPEN_PROFILE_BUTTON, 
+                    url=f"https://instagram.com/{ig_handle}"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    Messages.I_REPORTED_BUTTON,
+                    callback_data=CallbackData.TARGET_I_REPORTED.format(id=target_id)
+                ),
+            ],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.MENU_TARGETS)]
+        ])
+    
+    @staticmethod
+    def targets_list(targets: list, page: int = 0, total_pages: int = 1) -> InlineKeyboardMarkup:
+        """List of targets with pagination."""
+        buttons = []
+        
+        for target in targets:
+            priority_emoji = "🔴" if target.priority <= 3 else "🟡" if target.priority <= 6 else "🟢"
+            buttons.append([
+                InlineKeyboardButton(
+                    f"{priority_emoji} @{target.ig_handle} ({target.anonymous_report_count})",
+                    callback_data=CallbackData.TARGET_VIEW.format(id=target.id)
+                )
+            ])
+        
+        # Pagination
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=CallbackData.TARGETS_PAGE.format(page=page-1)))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=CallbackData.TARGETS_PAGE.format(page=page+1)))
+        if nav_buttons:
+            buttons.append(nav_buttons)
+        
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
+        
+        return InlineKeyboardMarkup(buttons)
+    
+    @staticmethod
+    def victories_actions() -> InlineKeyboardMarkup:
+        """Victory wall action buttons."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(Messages.VIEW_ALL_VICTORIES, callback_data=CallbackData.VICTORIES_ALL)],
+            [InlineKeyboardButton(Messages.CELEBRATE_BUTTON, callback_data=CallbackData.VICTORIES_CELEBRATE)],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+        ])
+    
+    @staticmethod
+    def announcement_reactions(announcement_id: int, fire: int = 0, heart: int = 0, fist: int = 0) -> InlineKeyboardMarkup:
+        """Announcement with reaction buttons."""
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(f"🔥 {fire}", callback_data=CallbackData.ANNOUNCEMENT_REACT.format(id=announcement_id, emoji="fire")),
+                InlineKeyboardButton(f"❤️ {heart}", callback_data=CallbackData.ANNOUNCEMENT_REACT.format(id=announcement_id, emoji="heart")),
+                InlineKeyboardButton(f"✊ {fist}", callback_data=CallbackData.ANNOUNCEMENT_REACT.format(id=announcement_id, emoji="fist")),
+            ],
+            [InlineKeyboardButton(Messages.SHARE_BUTTON, switch_inline_query=f"announcement_{announcement_id}")],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.MENU_ANNOUNCEMENTS)]
+        ])
+    
+    @staticmethod
+    def petition_actions(petition_id: int, url: str) -> InlineKeyboardMarkup:
+        """Petition action buttons."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(Messages.SIGN_PETITION, url=url)],
+            [InlineKeyboardButton(Messages.SHARE_BUTTON, switch_inline_query=f"petition_{petition_id}")],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.MENU_PETITIONS)]
+        ])
+    
+    @staticmethod
+    def solidarity_actions() -> InlineKeyboardMarkup:
+        """Solidarity wall actions."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(Messages.LEAVE_MESSAGE, callback_data=CallbackData.SOLIDARITY_WRITE)],
+            [InlineKeyboardButton(Messages.LOAD_MORE, callback_data=CallbackData.SOLIDARITY_MORE)],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+        ])
+    
+    @staticmethod
+    def resources_menu() -> InlineKeyboardMarkup:
+        """Resources menu."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(Messages.GUIDE_REPORT_IG, callback_data=CallbackData.RESOURCE_REPORT_IG)],
+            [InlineKeyboardButton(Messages.GUIDE_SAFETY, callback_data=CallbackData.RESOURCE_SAFETY)],
+            [InlineKeyboardButton(Messages.GUIDE_TEMPLATES, callback_data=CallbackData.RESOURCE_TEMPLATES)],
+            [InlineKeyboardButton(Messages.GUIDE_SUPPORT, callback_data=CallbackData.RESOURCE_SUPPORT)],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+        ])
+    
+    @staticmethod
+    def templates_list(templates: list) -> InlineKeyboardMarkup:
+        """Report templates list."""
+        buttons = []
+        for template in templates:
+            buttons.append([
+                InlineKeyboardButton(
+                    template.name_fa,
+                    callback_data=CallbackData.TEMPLATE_VIEW.format(type=template.violation_type)
+                )
+            ])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.MENU_RESOURCES)])
+        return InlineKeyboardMarkup(buttons)
+    
+    @staticmethod
+    def notification_settings(prefs) -> InlineKeyboardMarkup:
+        """Notification settings toggles."""
+        def toggle_text(enabled: bool) -> str:
+            return Messages.NOTIF_ENABLED if enabled else Messages.NOTIF_DISABLED
+        
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(
+                f"{Messages.NOTIF_URGENT} [{toggle_text(prefs.announcements_urgent)}]",
+                callback_data=CallbackData.NOTIF_TOGGLE.format(type="urgent")
+            )],
+            [InlineKeyboardButton(
+                f"{Messages.NOTIF_NEWS} [{toggle_text(prefs.announcements_news)}]",
+                callback_data=CallbackData.NOTIF_TOGGLE.format(type="news")
+            )],
+            [InlineKeyboardButton(
+                f"{Messages.NOTIF_VICTORIES} [{toggle_text(prefs.victories)}]",
+                callback_data=CallbackData.NOTIF_TOGGLE.format(type="victories")
+            )],
+            [InlineKeyboardButton(
+                f"{Messages.NOTIF_PETITIONS} [{toggle_text(prefs.petitions)}]",
+                callback_data=CallbackData.NOTIF_TOGGLE.format(type="petitions")
+            )],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+        ])
+    
+    @staticmethod
+    def admin_menu(is_super_admin: bool = False, pending_count: int = 0) -> InlineKeyboardMarkup:
+        """Admin panel menu."""
+        pending_badge = f" ({pending_count})" if pending_count > 0 else ""
+        buttons = [
+            [InlineKeyboardButton(f"✅ تأیید صفحات پیشنهادی{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)],
+            [InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)],
+            [InlineKeyboardButton(Messages.ADMIN_ANNOUNCEMENTS, callback_data=CallbackData.ADMIN_ANNOUNCEMENTS)],
+            [InlineKeyboardButton(Messages.ADMIN_PETITIONS, callback_data=CallbackData.ADMIN_PETITIONS)],
+            [InlineKeyboardButton(Messages.ADMIN_SOLIDARITY, callback_data=CallbackData.ADMIN_SOLIDARITY)],
+            [InlineKeyboardButton(Messages.ADMIN_STATS, callback_data=CallbackData.ADMIN_STATS)],
+        ]
+        # Super admin only: manage admins
+        if is_super_admin:
+            buttons.append([InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data=CallbackData.ADMIN_MANAGE_ADMINS)])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
+        return InlineKeyboardMarkup(buttons)
+    
+    @staticmethod
+    def admin_pending_approval(target_id: int) -> InlineKeyboardMarkup:
+        """Admin approval buttons for pending targets."""
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("✅ تأیید", callback_data=f"admin:approve_target:{target_id}"),
+                InlineKeyboardButton("❌ رد", callback_data=f"admin:reject_target:{target_id}"),
+            ],
+            [InlineKeyboardButton("▶️ بعدی", callback_data=CallbackData.ADMIN_PENDING_TARGETS)],
+        ])
+    
+    @staticmethod
+    def admin_list(admins: list) -> InlineKeyboardMarkup:
+        """List of admins with remove buttons."""
+        buttons = []
+        for admin in admins:
+            buttons.append([
+                InlineKeyboardButton(
+                    f"❌ {admin.telegram_id} ({admin.role.value})",
+                    callback_data=CallbackData.ADMIN_REMOVE_ADMIN.format(id=admin.id)
+                )
+            ])
+        buttons.append([InlineKeyboardButton("➕ افزودن ادمین جدید", callback_data=CallbackData.ADMIN_ADD_ADMIN)])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
+        return InlineKeyboardMarkup(buttons)
+    
+    @staticmethod
+    def admin_target_actions(target_id: int) -> InlineKeyboardMarkup:
+        """Admin actions for a target."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("✏️ ویرایش", callback_data=CallbackData.ADMIN_TARGET_EDIT.format(id=target_id))],
+            [InlineKeyboardButton("🏆 علامت به عنوان حذف شده", callback_data=CallbackData.ADMIN_TARGET_VICTORY.format(id=target_id))],
+            [InlineKeyboardButton("❌ حذف از لیست", callback_data=CallbackData.ADMIN_TARGET_REMOVE.format(id=target_id))],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)]
+        ])
+    
+    @staticmethod
+    def admin_solidarity_moderation(message_id: int) -> InlineKeyboardMarkup:
+        """Admin moderation for solidarity messages."""
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("✅ تأیید", callback_data=CallbackData.ADMIN_APPROVE_MSG.format(id=message_id)),
+                InlineKeyboardButton("❌ رد", callback_data=CallbackData.ADMIN_REJECT_MSG.format(id=message_id)),
+            ]
+        ])
