@@ -2,7 +2,7 @@ name: Deploy Bot
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 env:
@@ -13,7 +13,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: Dev
+    environment: main
     permissions:
       contents: read
       packages: write

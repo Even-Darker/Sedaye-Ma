@@ -103,6 +103,27 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+## 👩‍💻 Development Workflow
+
+To add features without breaking specific production deployment:
+
+### 1. Local Testing (The "Dev Pattern")
+You shouldn't wait for deployment to test changes.
+1.  **Get a Test Token**: Ask @BotFather for a second, separate bot token (e.g. `Sedaye_Dev_Bot`).
+2.  **Configure Local Env**: In your local `.env`, put this **Test Token**.
+3.  **Run Locally**: `python -m src.bot`
+4.  **test**: Interacting with your Dev Bot does not affect real users.
+
+### 2. Secure Collaboration
+Your friend can help without knowing your secrets:
+1.  They clone this repo.
+2.  They create their **own** `.env` file (git ignores it).
+3.  They use **their own** Bot Token (they can create one for free).
+4.  They code, test on their bot, and push.
+5.  You merge their code -> GitHub deploys it to the Main Bot.
+
+**Security Rule:** ⚠️ NEVER share your `.env` file or commit `TELEGRAM_BOT_TOKEN` to git!
+
 ## 📝 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
