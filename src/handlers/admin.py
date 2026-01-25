@@ -7,6 +7,7 @@ from telegram.ext import (
     ContextTypes, CommandHandler, CallbackQueryHandler, 
     MessageHandler, filters, ConversationHandler
 )
+import re
 from sqlalchemy import select
 from datetime import datetime
 
@@ -301,7 +302,7 @@ async def manage_targets(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not targets:
             message += "_هیچ صفحه‌ای وجود ندارد\\._"
         
-        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_ADMIN)])
         
         await query.edit_message_text(
             message,
@@ -369,7 +370,7 @@ async def moderate_solidarity(update: Update, context: ContextTypes.DEFAULT_TYPE
             await query.edit_message_text(
                 "💬 *تأیید پیام‌ها*\n\n_هیچ پیام در انتظار تأیید نیست\\._",
                 parse_mode="MarkdownV2",
-                reply_markup=Keyboards.back_to_main()
+                reply_markup=Keyboards.back_to_admin()
             )
             return
         
@@ -585,6 +586,49 @@ async def cancel_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     return ConversationHandler.END
 
+    return ConversationHandler.END
+
+
+# Global Menu Pattern for Fallbacks
+MENU_PATTERN = re.compile(f"^({'|'.join(map(re.escape, [
+    Messages.MENU_TARGETS, Messages.MENU_ANNOUNCEMENTS, 
+    Messages.MENU_PETITIONS, Messages.MENU_SOLIDARITY, 
+    Messages.MENU_RESOURCES, Messages.MENU_SETTINGS, 
+    Messages.ADMIN_HEADER
+]))})$")
+
+
+async def handle_menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle global menu commands by ending conversation and routing."""
+    text = update.message.text
+    context.user_data.clear()
+    
+    # Import handlers locally to avoid cycles
+    from src.handlers import (
+        instagram, announcements, petitions, solidarity,
+        resources, settings
+    )
+    # We can call admin.admin_panel directly as we are in admin.py
+    
+    if text == Messages.MENU_TARGETS or "ریپورت ساندیسی" in text:
+        await instagram.show_report_sandisi_menu(update, context)
+    elif text == Messages.MENU_ANNOUNCEMENTS:
+        await announcements.show_announcements(update, context)
+    elif text == Messages.MENU_PETITIONS:
+        await petitions.show_petitions(update, context)
+    elif text == Messages.MENU_SOLIDARITY:
+        await solidarity.show_solidarity(update, context)
+    elif text == Messages.MENU_RESOURCES:
+        await resources.show_resources(update, context)
+    elif text == Messages.MENU_SETTINGS:
+        await settings.show_settings(update, context)
+    elif text == Messages.ADMIN_HEADER:
+        await admin_panel(update, context)
+    else:
+        await update.message.reply_text(Messages.ERROR_GENERIC)
+        
+    return ConversationHandler.END
+
 
 # Add target conversation handler
 add_target_conversation = ConversationHandler(
@@ -593,14 +637,15 @@ add_target_conversation = ConversationHandler(
     ],
     states={
         ADDING_TARGET_HANDLE: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_target_handle),
+            MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex(MENU_PATTERN), receive_target_handle),
         ],
         ADDING_TARGET_REASONS: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_target_reasons),
+            MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex(MENU_PATTERN), receive_target_reasons),
         ],
     },
     fallbacks=[
         CallbackQueryHandler(cancel_admin_action, pattern=f"^{CallbackData.BACK_MAIN}$"),
+        MessageHandler(filters.Regex(MENU_PATTERN), handle_menu_fallback),
     ],
     per_message=False,
 )
@@ -613,11 +658,12 @@ add_admin_conversation = ConversationHandler(
     ],
     states={
         ADDING_ADMIN_ID: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_admin_id),
+            MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex(MENU_PATTERN), receive_admin_id),
         ],
     },
     fallbacks=[
         CallbackQueryHandler(cancel_admin_action, pattern=f"^{CallbackData.BACK_MAIN}$"),
+        MessageHandler(filters.Regex(MENU_PATTERN), handle_menu_fallback),
     ],
     per_message=False,
 )
@@ -647,7 +693,7 @@ async def show_pending_targets(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.edit_message_text(
                 "✅ *صفحات پیشنهادی*\n\n_هیچ صفحه‌ای در انتظار تأیید نیست\\._",
                 parse_mode="MarkdownV2",
-                reply_markup=Keyboards.back_to_main()
+                reply_markup=Keyboards.back_to_admin()
             )
             return
         
@@ -837,4 +883,6 @@ admin_handlers = [
     CallbackQueryHandler(reject_target, pattern=r"^admin:reject_target:\d+$"),
     # Quick Action Confirmation
     CallbackQueryHandler(admin_process_closed_report, pattern=r"^admin:closed:(yes|no):\d+$"),
+    # Back to Admin Panel
+    CallbackQueryHandler(admin_panel, pattern=f"^{CallbackData.BACK_ADMIN}$"),
 ]

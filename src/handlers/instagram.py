@@ -42,7 +42,11 @@ async def show_filter_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await query.edit_message_text(
-        "🔍 *فیلتر لیست*\n\nچه صفحاتی را می‌خواهید ببینید؟",
+        (
+            "� *کدام صفحات را نمایش دهیم؟*\n\n"
+            "🧃 *جدید:* صفحاتی که هنوز آنها را گزارش نکرده‌اید (اولویت بالا برای حمله)\n"
+            "✅ *قدیمی:* صفحاتی که قبلاً گزارش داده‌اید (برای بررسی مجدد یا گزارش دوباره)"
+        ),
         parse_mode="MarkdownV2",
         reply_markup=Keyboards.targets_filter_menu()
     )
@@ -103,9 +107,9 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not targets:
             empty_msg = Messages.TARGETS_EMPTY
             if filter_type == CallbackData.FILTER_NEW:
-                empty_msg = "👏 آفرین! شما تمام صفحات فعال را گزارش کرده‌اید."
+                empty_msg = "👏 آفرین\\! شما تمام صفحات فعال را گزارش کرده‌اید\\."
             elif filter_type == CallbackData.FILTER_REPORTED:
-                empty_msg = "شما هنوز هیچ صفحه‌ای را گزارش نکرده‌اید."
+                empty_msg = "شما هنوز هیچ صفحه‌ای را گزارش نکرده‌اید\\."
                 
             await query.edit_message_text(
                 f"{header_text}\n\n{empty_msg}",
@@ -373,6 +377,26 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
             await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
             return ConversationHandler.END
 
+        # Check for Duplicate Concern
+        user_id = query.from_user.id
+        from hashlib import sha256
+        from config import settings
+        from src.database.models import UserConcernLog
+        
+        salt = settings.encryption_key or "default_salt" 
+        user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+        
+        existing_log = await session.execute(
+            select(UserConcernLog).where(
+                UserConcernLog.target_id == target_id,
+                UserConcernLog.user_hash == user_hash,
+                UserConcernLog.concern_type == "closed"
+            )
+        )
+        if existing_log.scalar_one_or_none():
+            await query.answer("⚠️ شما قبلاً گزارش بسته شدن این صفحه را ارسال کرده‌اید.", show_alert=True)
+            return ConversationHandler.END
+
         # Notify Admins
         from src.database.models import Admin
         admins = (await session.execute(select(Admin))).scalars().all()
@@ -387,6 +411,11 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
                 )
             except Exception:
                 pass
+        
+        # Log It
+        new_log = UserConcernLog(target_id=target_id, user_hash=user_hash, concern_type="closed")
+        session.add(new_log)
+        await session.commit()
 
     await query.answer("✅ گزارش شما برای ادمین ارسال شد.", show_alert=True)
     return ConversationHandler.END

@@ -23,6 +23,7 @@ class CallbackData:
     BACK_SANDISI = "nav:sandisi"
     BACK_FILTER = "nav:filter"
     BACK = "nav:back"
+    BACK_ADMIN = "nav:admin"
     
     # User suggest target
     SUGGEST_TARGET = "suggest:target"
@@ -202,6 +203,13 @@ class Keyboards:
         ])
 
     @staticmethod
+    def back_to_admin() -> InlineKeyboardMarkup:
+        """Back to admin menu button."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_ADMIN)]
+        ])
+
+    @staticmethod
     def back_to_sandisi() -> InlineKeyboardMarkup:
         """Back to report sandisi menu button."""
         return InlineKeyboardMarkup([
@@ -281,8 +289,8 @@ class Keyboards:
     def victories_actions() -> InlineKeyboardMarkup:
         """Victory wall action buttons."""
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton(Messages.VIEW_ALL_VICTORIES, callback_data=CallbackData.VICTORIES_ALL)],
-            [InlineKeyboardButton(Messages.CELEBRATE_BUTTON, callback_data=CallbackData.VICTORIES_CELEBRATE)],
+            # [InlineKeyboardButton(Messages.VIEW_ALL_VICTORIES, callback_data=CallbackData.VICTORIES_ALL)],
+            # [InlineKeyboardButton(Messages.CELEBRATE_BUTTON, callback_data=CallbackData.VICTORIES_CELEBRATE)],
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)]
         ])
     
@@ -380,7 +388,6 @@ class Keyboards:
             [InlineKeyboardButton(Messages.ADMIN_SOLIDARITY, callback_data=CallbackData.ADMIN_SOLIDARITY)],
             [InlineKeyboardButton(Messages.ADMIN_STATS, callback_data=CallbackData.ADMIN_STATS)],
         ]
-        # Super admin only: manage admins
         if is_super_admin:
             buttons.append([InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data=CallbackData.ADMIN_MANAGE_ADMINS)])
         buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
@@ -394,7 +401,7 @@ class Keyboards:
                 InlineKeyboardButton("✅ تأیید", callback_data=f"admin:approve_target:{target_id}"),
                 InlineKeyboardButton("❌ رد", callback_data=f"admin:reject_target:{target_id}"),
             ],
-            [InlineKeyboardButton("▶️ بعدی", callback_data=CallbackData.ADMIN_PENDING_TARGETS)],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_ADMIN)],
         ])
     
     @staticmethod
@@ -409,7 +416,7 @@ class Keyboards:
                 )
             ])
         buttons.append([InlineKeyboardButton("➕ افزودن ادمین جدید", callback_data=CallbackData.ADMIN_ADD_ADMIN)])
-        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_ADMIN)])
         return InlineKeyboardMarkup(buttons)
     
     @staticmethod

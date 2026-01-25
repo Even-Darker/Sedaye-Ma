@@ -51,7 +51,7 @@ Made with ❤️ for the great people of Iran
     # INSTAGRAM TARGETS
     # ═══════════════════════════════════════════════════════════════
     
-    TARGETS_HEADER = "🎯 *صفحات برای گزارش*"
+    TARGETS_HEADER = "🎯 *صفحه گزارش ساندیس*"
     
     REPORT_SANDISI_DESCRIPTION = (
         "🧃 *مرکز عملیات ریپورت ساندیسی*\n\n"

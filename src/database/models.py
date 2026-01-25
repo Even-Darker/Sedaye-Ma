@@ -302,5 +302,36 @@ class UserReportLog(Base):
         UniqueConstraint('target_id', 'user_hash', name='uq_target_user_hash'),
     )
     
+    
     def __repr__(self):
         return f"<ReportLog(target={self.target_id})>"
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER CONCERN LOG (HASHED FOR PRIVACY)
+# ═══════════════════════════════════════════════════════════════
+
+class UserConcernLog(Base):
+    """
+    Tracks which users have reported concerns (Page Closed / Other) for which targets.
+    To prevent spamming admins with the same 'page closed' claim.
+    STORES HASHED IDS ONLY.
+    """
+    __tablename__ = "user_concern_logs"
+    
+    id = Column(Integer, primary_key=True)
+    target_id = Column(Integer, ForeignKey("instagram_targets.id"), nullable=False)
+    
+    # SHA256(user_id + salt)
+    user_hash = Column(String(64), nullable=False)
+    concern_type = Column(String(50), nullable=False) # "closed", "other"
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Ensure one concern per user per target per type
+    __table_args__ = (
+        UniqueConstraint('target_id', 'user_hash', 'concern_type', name='uq_concern_target_user_type'),
+    )
+    
+    def __repr__(self):
+        return f"<ConcernLog(target={self.target_id}, type={self.concern_type})>"

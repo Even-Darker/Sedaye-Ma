@@ -27,12 +27,20 @@ async def is_user_admin(user_id: int) -> bool:
 async def back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle back to main menu."""
     query = update.callback_query
+    
+    # Check if user is admin to show admin button
+    user_id = update.effective_user.id
+    admin_access = await is_user_admin(user_id)
+    
     await query.answer()
     
-    try:
-        await query.message.delete()
-    except Exception:
-        await query.edit_message_text("👇 لطفاً از منوی پایین استفاده کنید")
+    # Instead of deleting, we edit correctly to show main menu options (inline)
+    # The main menu is usually persistent reply keyboard, but for inline navigation we show the inline version.
+    await query.edit_message_text(
+        Messages.MAIN_MENU_HEADER,
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.main_menu(is_admin=admin_access)
+    )
 
 
 async def back_to_report_sandisi(update: Update, context: ContextTypes.DEFAULT_TYPE):
