@@ -1,176 +1,108 @@
-# 🔥 صدای ما - Sedaye Ma
+# 🦅 Sedaye Ma (Our Voice)
 
-<div align="center">
+> **Coordinating collective action against online violations.**
 
-**The Voice of the People**
+Sedaye Ma is a Telegram bot designed to help communities organize and report violations on social media platforms (focusing on Instagram). It facilitates the reporting of harmful content such as violence, misinformation, propaganda, and harassment.
 
-A privacy-first, open-source Telegram bot built in solidarity with Iranian people.
+![Project Status](https://img.shields.io/badge/status-active-success.svg)
+![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-blue.svg)](https://core.telegram.org/bots)
+## ✨ Features
 
-[فارسی](#فارسی) | [English](#english)
-
-</div>
-
----
-
-## فارسی
-
-### صدای ما چیست؟
-
-صدای ما یک ربات تلگرام متن‌باز است که برای تقویت صدای مردم ایران ساخته شده است. این ربات به کاربران کمک می‌کند تا صفحات اینستاگرام ناقض قوانین را گزارش کنند - همه به صورت ناشناس و امن.
-
-### ویژگی‌ها
-
-- 🎯 **لیست صفحات برای گزارش** - مشاهده صفحات با اولویت و قالب‌های گزارش آماده
-- 🏆 **تالار افتخار** - صفحاتی که با موفقیت حذف شده‌اند
-- 📊 **آمار زنده** - تأثیر جمعی جامعه
-- 📢 **اطلاعیه‌ها** - اخبار و فراخوان‌های مهم
-- ✊ **پتیشن‌ها** - امضای درخواست‌های آنلاین
-- 💬 **دیوار همبستگی** - پیام‌های ناشناس از سراسر جهان
-- 📚 **راهنمای امنیت دیجیتال**
-
-### 🔒 حریم خصوصی
-
-- **هیچ اطلاعات کاربری ذخیره نمی‌شود**
-- تعامل کاملاً ناشناس
-- کد متن‌باز برای شفافیت کامل
-
----
-
-## English
-
-### What is Sedaye Ma?
-
-Sedaye Ma ("Our Voice" in Persian) is an open-source Telegram bot built to amplify the voice of Iranian people. It helps users report Instagram pages that violate platform policies - all anonymously and safely.
-
-### Features
-
-- 🎯 **Instagram Target List** - View prioritized pages with ready-to-use report templates
-- 🏆 **Victory Wall** - Celebrate successfully removed pages
-- 📊 **Live Statistics** - Track community impact in real-time
-- 📢 **Announcements** - Important news and calls to action
-- ✊ **Petitions** - Sign important online petitions
-- 💬 **Solidarity Wall** - Anonymous messages from around the world
-- 📚 **Digital Safety Guide** - Stay safe while participating
-
-### 🔒 Privacy Guarantees
-
-- **Zero user data stored** - No IDs, names, or handles
-- Fully anonymous interactions
-- Open source for complete transparency
-- Only admin IDs stored (with explicit consent)
-
----
+- **Organized Reporting**: View daily targets for reporting with specific reasons.
+- **Verification System**: Automated Instagram profile validation to ensure targets exist.
+- **User Suggestions**: Community members can suggest new targets (requires Admin approval).
+- **Admin Panel**: Complete management system within Telegram for admins to approve/reject targets and manage listing.
+- **Victories**: Section to celebrate successful removals and community impact.
+- **Privacy Focused**: Built with user privacy in mind.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.11+
-- A Telegram Bot Token (get from [@BotFather](https://t.me/botfather))
+- A Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
+- An Admin Telegram ID (your user ID)
 
-### Installation
+### Local Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/Sedaye_Ma.git
-cd Sedaye_Ma
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/sedaye-ma.git
+   cd sedaye-ma
+   ```
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+2. **Set up virtual environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-# Install dependencies
-pip install -r requirements.txt
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your bot token and admin ID
-```
+4. **Configure environment**
+   Copy `.env.example` to `.env` and fill in your details:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your TELEGRAM_BOT_TOKEN and SUPER_ADMIN_IDS
+   ```
 
-### Configuration
+5. **Run the bot**
+   ```bash
+   python -m src.bot
+   ```
 
-Edit `.env` file:
+## 🛠 Deployment
 
-```env
-TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
-SUPER_ADMIN_IDS=your_telegram_user_id
-DATABASE_URL=sqlite+aiosqlite:///./data/sedaye_ma.db
-ENCRYPTION_KEY=generate_with_cryptography_fernet
-ENVIRONMENT=development
-```
+### Option 1: Docker (Recommended)
 
-### Run the Bot
+1. **Build the image**
+   ```bash
+   docker build -t sedaye-ma .
+   ```
 
-```bash
-python -m src.bot
-```
+2. **Run the container**
+   ```bash
+   docker run -d \
+     -e TELEGRAM_BOT_TOKEN="your_token" \
+     -e SUPER_ADMIN_IDS="12345678" \
+     -v $(pwd)/data:/app/data \
+     --name sedaye-ma \
+     sedaye-ma
+   ```
 
----
+### Option 2: GitHub Actions (Automated)
 
-## 🏗️ Project Structure
+This repository includes a GitHub Actions workflow to automatically build and deploy the bot.
 
-```
-Sedaye_Ma/
-├── config/                 # Configuration
-│   ├── settings.py         # Environment settings
-│   └── messages_fa.py      # Persian UI strings
-├── src/
-│   ├── bot.py              # Main entry point
-│   ├── database/           # SQLAlchemy models
-│   ├── handlers/           # Telegram handlers
-│   ├── services/           # Business logic
-│   └── utils/              # Utilities
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+**What you need:**
+1. A Server/VPS (Ubuntu recommended) with Docker installed.
+2. In your GitHub Repo Settings -> Secrets, add:
+   - `HOST`: Your server IP address
+   - `USERNAME`: Server SSH username (e.g. root)
+   - `KEY`: Server SSH private key
+   - `TELEGRAM_BOT_TOKEN`: Your bot token
+   - `SUPER_ADMIN_IDS`: Admin ID(s)
 
----
-
-## 🛡️ Admin Commands
-
-| Command | Description |
-|---------|-------------|
-| `/admin` | Open admin panel |
-| Add Target | Add new Instagram page to report |
-| Mark Victory | Mark a page as successfully removed |
-| Moderate | Approve/reject solidarity messages |
-
----
+The workflow will:
+1. Build the Docker image on every push to `main`.
+2. Push the image to GitHub Container Registry (GHCR).
+3. SSH into your server, pull the new image, and restart the bot.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please:
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
----
+## 📝 License
 
-## ⚠️ Disclaimer
-
-This bot is designed for **peaceful, legal reporting** of content that violates Instagram's own policies. Users are encouraged to use official platform reporting tools. We do not encourage any illegal activities.
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-**زن، زندگی، آزادی**
-
-**Woman, Life, Freedom**
-
-✊🔥
-
-</div>
+Distributed under the MIT License. See `LICENSE` for more information.
