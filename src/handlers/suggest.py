@@ -167,7 +167,7 @@ async def receive_suggest_handle(update: Update, context: ContextTypes.DEFAULT_T
     else:
         context.user_data["suggest_handles"] = new_handles
         
-        preview = "\n".join([f"• @{Formatters.escape_markdown(h)}" for h in new_handles[:10]])
+        preview = "\n".join([f"• [@{Formatters.escape_markdown(h)}](https://instagram.com/{h})" for h in new_handles[:10]])
         if len(new_handles) > 10:
             preview += f"\n\\.\\.\\. و {len(new_handles) - 10} مورد دیگر"
             

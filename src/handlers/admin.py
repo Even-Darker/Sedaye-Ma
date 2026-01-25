@@ -167,12 +167,18 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         context.user_data["new_target_handles"] = new_handles
         
+        preview = "\n".join([f"• [@{Formatters.escape_markdown(h)}](https://instagram.com/{h})" for h in new_handles[:10]])
+        if len(new_handles) > 10:
+            preview += f"\n\\.\\.\\. و {len(new_handles) - 10} مورد دیگر"
+        
         await loading_msg.edit_text(
             f"✅ *{len(new_handles)} نام کاربری یافت شد*\n\n"
+            f"{preview}\n\n"
             f"آیا مطمئن هستید؟\n\n"
             "حالا دلایل گزارش را برای **همه این موارد** وارد کنید \\(با کاما جدا کنید\\):\n"
             "`violence, misinformation, propaganda, human_rights, harassment`",
-            parse_mode="MarkdownV2"
+            parse_mode="MarkdownV2",
+            disable_web_page_preview=True
         )
         return ADDING_TARGET_REASONS
 
