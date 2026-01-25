@@ -50,7 +50,8 @@ jobs:
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
+          password: ${{ secrets.PASSWORD }}
+          # key: ${{ secrets.KEY }} # Optional: Use key if you switch to SSH keys later
           script: |
             # Login to GHCR on server
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
