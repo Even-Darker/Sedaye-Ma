@@ -16,6 +16,7 @@ class InstagramProfile:
     """Basic Instagram profile information."""
     username: str
     exists: bool
+    verified: bool = False  # True if we explicitly found the profile, False if inconclusive
     display_name: Optional[str] = None
     followers_count: Optional[int] = None
     is_private: Optional[bool] = None
@@ -92,7 +93,7 @@ class InstagramValidator:
                 async with session.get(url, headers=headers, allow_redirects=True) as response:
                     html = await response.text()
                     
-                    # Check for clear indicators that the profile doesn't exist
+                    # 1. Check for explicit "Not Found" indicators
                     not_found_indicators = [
                         "Sorry, this page isn't available",
                         "Page Not Found",
@@ -106,56 +107,83 @@ class InstagramValidator:
                             return InstagramProfile(
                                 username=handle,
                                 exists=False,
+                                verified=True, # Explicitly verified as NOT existing
                                 error="Profile not found"
                             )
                     
-                    # Check if we actually found a profile 
-                    # A real profile page should have the username in the meta or JSON data
+                    # 2. Check for "Profile Found" indicators
                     profile_indicators = [
                         f'"username":"{handle}"',
                         f'@{handle}',
                         f'instagram.com/{handle}',
+                        'logging_page_id',  # Common on profile pages
+                        'profilePage_',      # Common in internal scripts
                     ]
-                    
                     found_profile = any(ind.lower() in html.lower() for ind in profile_indicators)
                     
-                    if response.status == 200 and found_profile:
+                    # 3. Check for Login Wall (which usually means page exists but is protected/rate-limited)
+                    login_indicators = [
+                         'login',
+                         'auth',
+                         'accounts/login',
+                         'Next',
+                    ]
+                    is_login_page = 'login' in str(response.url).lower() or \
+                                   any(ind.lower() in html.lower() for ind in login_indicators)
+                    
+                    # DECISION LOGIC:
+                    # If we found positive proof -> Exists & Verified
+                    if found_profile:
                         return InstagramProfile(
                             username=handle,
                             exists=True,
+                            verified=True,
+                            error=None
+                        )
+                        
+                    # If we got a 404 status code -> Does not exist & Verified
+                    if response.status == 404:
+                         return InstagramProfile(
+                            username=handle,
+                            exists=False,
+                            verified=True,
+                            error="Profile not found"
+                        )
+                        
+                    # If we hit a login wall or got a 200 without error -> Assume Exists but NOT Verified
+                    if is_login_page or response.status == 200:
+                         return InstagramProfile(
+                            username=handle,
+                            exists=True,
+                            verified=False, # Inconclusive!
                             error=None
                         )
                     
-                    elif response.status == 404:
-                        return InstagramProfile(
-                            username=handle,
-                            exists=False,
-                            error="Profile not found"
-                        )
-                    
-                    else:
-                        # Could not determine - be conservative and say not found
-                        logger.warning(f"Could not verify @{handle} - status {response.status}, found_profile={found_profile}")
-                        return InstagramProfile(
-                            username=handle,
-                            exists=False,
-                            error="Could not verify profile exists"
-                        )
+                    # Fallback -> Inconclusive
+                    logger.warning(f"Could not verify @{handle} definitive - status {response.status}")
+                    return InstagramProfile(
+                        username=handle,
+                        exists=True,
+                        verified=False,
+                        error=None
+                    )
         
         except aiohttp.ClientError as e:
             logger.error(f"Network error checking @{handle}: {e}")
             return InstagramProfile(
                 username=handle,
-                exists=False,  # Be conservative on error
-                error="Network error - could not verify"
+                exists=True,
+                verified=False, # Network error = Inconclusive
+                error=None
             )
         
         except Exception as e:
             logger.error(f"Unexpected error checking @{handle}: {e}")
             return InstagramProfile(
                 username=handle,
-                exists=False,  # Be conservative on error
-                error="Verification error"
+                exists=True,
+                verified=False,
+                error=None
             )
 
 

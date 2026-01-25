@@ -2,7 +2,7 @@
 Target suggestion handlers for Sedaye Ma bot.
 Allows users to suggest new pages to report.
 """
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     ContextTypes, CallbackQueryHandler, 
     MessageHandler, filters, ConversationHandler
@@ -18,7 +18,8 @@ from src.database.models import TargetStatus
 
 # Conversation states
 SUGGEST_HANDLE = 1
-SUGGEST_REASONS = 2
+SUGGEST_CONFIRM_HANDLE = 2
+SUGGEST_REASONS = 3
 
 
 async def is_user_admin(user_id: int) -> bool:
@@ -113,7 +114,10 @@ async def receive_suggest_handle(update: Update, context: ContextTypes.DEFAULT_T
     # Validate on Instagram
     profile = await validate_instagram_handle(handle)
     
+    context.user_data["suggest_handle"] = handle
+    
     if not profile.exists:
+        # CASE: BAD (Explicitly Not Found)
         error_detail = ""
         if profile.error:
             error_detail = f"\n_{Formatters.escape_markdown(profile.error)}_"
@@ -125,20 +129,76 @@ async def receive_suggest_handle(update: Update, context: ContextTypes.DEFAULT_T
         )
         return SUGGEST_HANDLE
     
-    # Store handle for next step
-    context.user_data["suggest_handle"] = handle
+    # CASE: UNKNOWN (Login Wall / Generic 200) -> Ask User Confirmation
+    if not profile.verified:
+        ig_link = f"https://instagram.com/{handle}"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ بله، صفحه موجود است", callback_data="confirm_existing")],
+            [InlineKeyboardButton("❌ خیر، تصحیح می‌کنم", callback_data="confirm_retry")],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+        ])
+        
+        await loading_msg.edit_text(
+            f"⚠️ *نیاز به تأیید دستی*\n\n"
+            f"بات نتوانست به طور خودکار وجود صفحه @{Formatters.escape_markdown(handle)} را تأیید کند "
+            f"\\(محدودیت اینستاگرام\\)\\.\n\n"
+            f"لطفاً لینک زیر را چک کنید؛ اگر صفحه باز می‌شود دکمه «بله» را بزنید:\n"
+            f"🔗 [{ig_link}]({ig_link})",
+            parse_mode="MarkdownV2",
+            reply_markup=keyboard,
+            disable_web_page_preview=True
+        )
+        return SUGGEST_CONFIRM_HANDLE
     
-    # Ask for reasons - make handle a clickable link
+    # CASE: GOOD (Verified Exists) -> Auto-Proceed
+    return await ask_reasons(loading_msg, handle)
+
+
+async def confirm_handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle confirmation of inconclusive handle."""
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    if data == "confirm_retry":
+        await query.edit_message_text(
+            "لطفاً handle صحیح را وارد کنید:",
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.back_to_main()
+        )
+        return SUGGEST_HANDLE
+    
+    # Confirmed
+    handle = context.user_data.get("suggest_handle")
+    # Edit the message to show next step
+    return await ask_reasons(query, handle)
+
+
+async def ask_reasons(messageable, handle):
+    """Show the ask reasons message."""
     ig_link = f"https://instagram.com/{handle}"
-    await loading_msg.edit_text(
+    text = (
         f"✅ *صفحه تأیید شد*\n\n"
         f"📍 Handle: [@{Formatters.escape_markdown(handle)}]({ig_link})\n\n"
         "چرا این صفحه باید گزارش شود؟\n"
         "لطفاً دلایل را وارد کنید \\(با کاما جدا کنید\\):\n\n"
-        "`violence, misinformation, propaganda, human_rights, harassment`",
-        parse_mode="MarkdownV2",
-        disable_web_page_preview=True
+        "`violence, misinformation, propaganda, human_rights, harassment`"
     )
+    
+    # Helper to edit message whether it's an Update (callback) or Message
+    if hasattr(messageable, "edit_message_text"): # CallbackQuery
+        await messageable.edit_message_text(
+            text,
+            parse_mode="MarkdownV2",
+            reply_markup=None, 
+            disable_web_page_preview=True
+        )
+    else: # Message
+        await messageable.edit_text(
+            text,
+            parse_mode="MarkdownV2",
+            disable_web_page_preview=True
+        )
     
     return SUGGEST_REASONS
 
@@ -171,6 +231,7 @@ async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_
         return SUGGEST_REASONS
     
     # Determine status based on admin level
+    # Even if unknown/confirmed manually, we respect admin status
     target_status = TargetStatus.ACTIVE if is_admin else TargetStatus.PENDING
     
     # Save target
@@ -245,6 +306,9 @@ suggest_target_conversation = ConversationHandler(
         SUGGEST_HANDLE: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, receive_suggest_handle),
         ],
+        SUGGEST_CONFIRM_HANDLE: [
+            CallbackQueryHandler(confirm_handle_callback),
+        ],
         SUGGEST_REASONS: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, receive_suggest_reasons),
         ],
@@ -260,4 +324,3 @@ suggest_target_conversation = ConversationHandler(
 suggest_handlers = [
     suggest_target_conversation,
 ]
-
