@@ -139,7 +139,7 @@ class Keyboards:
         if is_admin:
             buttons.append([KeyboardButton(Messages.ADMIN_HEADER)])  # "🔐 پنل مدیریت" (Make sure this constant matches text)
             
-        return ReplyKeyboardMarkup(buttons, resize_keyboard=True, persistent=True)
+        return ReplyKeyboardMarkup(buttons, resize_keyboard=True, is_persistent=True)
 
     
     @staticmethod
