@@ -33,7 +33,7 @@ _Your data is never stored\\._
     
     MAIN_MENU_HEADER = "📋 *منوی اصلی*"
     
-    MENU_TARGETS = "🎯 صفحات برای گزارش"
+    MENU_TARGETS = "🧃 ریپورت ساندیسی"
     MENU_VICTORIES = "🏆 تالار افتخار"
     MENU_STATS = "📊 آمار زنده"
     MENU_ANNOUNCEMENTS = "📢 اطلاعیه‌ها"
