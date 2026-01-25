@@ -84,7 +84,7 @@ This repository includes a GitHub Actions workflow to automatically build and de
 2. In your GitHub Repo Settings -> Secrets, add:
    - `HOST`: Your server IP address
    - `USERNAME`: Server SSH username (e.g. root)
-   - `KEY`: Server SSH private key
+   - `PASSWORD`: Server SSH password (OR `KEY` for SSH Key)
    - `TELEGRAM_BOT_TOKEN`: Your bot token
    - `SUPER_ADMIN_IDS`: Admin ID(s)
 
