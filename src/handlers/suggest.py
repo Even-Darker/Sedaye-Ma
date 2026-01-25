@@ -57,7 +57,7 @@ async def start_suggest_target(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.edit_message_text(
         message,
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.back_to_main()
+        reply_markup=Keyboards.back_to_sandisi()
     )
     
     return SUGGEST_HANDLE
@@ -107,7 +107,7 @@ async def receive_suggest_handle(update: Update, context: ContextTypes.DEFAULT_T
             await loading_msg.edit_text(
                 f"⚠️ صفحه @{Formatters.escape_markdown(handle)} {status_text.get(existing.status, 'موجود است')}\\.",
                 parse_mode="MarkdownV2",
-                reply_markup=Keyboards.back_to_main()
+                reply_markup=Keyboards.back_to_sandisi()
             )
             return ConversationHandler.END
     
@@ -156,7 +156,7 @@ async def confirm_handle_action(update: Update, context: ContextTypes.DEFAULT_TY
             "✏️ *ویرایش نام کاربری*\n\n"
             "لطفاً handle صحیح را وارد کنید \\(بدون @\\):",
             parse_mode="MarkdownV2",
-            reply_markup=Keyboards.back_to_main()
+            reply_markup=Keyboards.back_to_sandisi()
         )
         return SUGGEST_HANDLE
         
@@ -189,7 +189,7 @@ async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text(
             "⚠️ خطا: لطفاً دوباره شروع کنید\\.",
             parse_mode="MarkdownV2",
-            reply_markup=Keyboards.back_to_main()
+            reply_markup=Keyboards.back_to_sandisi()
         )
         return ConversationHandler.END
     
@@ -216,7 +216,7 @@ async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_
             await update.message.reply_text(
                 f"⚠️ این صفحه قبلاً ثبت شده است\\.",
                 parse_mode="MarkdownV2",
-                reply_markup=Keyboards.back_to_main()
+                reply_markup=Keyboards.back_to_sandisi()
             )
             return ConversationHandler.END
         
@@ -238,7 +238,7 @@ async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_
             f"📍 Handle: [@{Formatters.escape_markdown(handle)}]({ig_link})\n"
             f"📋 دلایل: {Formatters.escape_markdown(', '.join(reasons))}",
             parse_mode="MarkdownV2",
-            reply_markup=Keyboards.back_to_main(),
+            reply_markup=Keyboards.back_to_sandisi(),
             disable_web_page_preview=True
         )
     else:
@@ -249,7 +249,7 @@ async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_
             f"📋 دلایل: {Formatters.escape_markdown(', '.join(reasons))}\n\n"
             f"_پس از تأیید ادمین‌ها، صفحه به لیست اضافه خواهد شد\\._",
             parse_mode="MarkdownV2",
-            reply_markup=Keyboards.back_to_main(),
+            reply_markup=Keyboards.back_to_sandisi(),
             disable_web_page_preview=True
         )
     
@@ -266,6 +266,12 @@ async def cancel_suggest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     context.user_data.pop("suggest_handle", None)
     context.user_data.pop("is_admin", None)
+    
+    await query.edit_message_text(
+        Messages.REPORT_SANDISI_DESCRIPTION,
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.report_sandisi_menu()
+    )
     return ConversationHandler.END
 
 
@@ -287,7 +293,7 @@ suggest_target_conversation = ConversationHandler(
         ],
     },
     fallbacks=[
-        CallbackQueryHandler(cancel_suggest, pattern=f"^{CallbackData.BACK_MAIN}$"),
+        CallbackQueryHandler(cancel_suggest, pattern=f"^{CallbackData.BACK_SANDISI}$"),
     ],
     per_message=False,
 )

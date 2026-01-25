@@ -20,12 +20,18 @@ class CallbackData:
     
     # Navigation
     BACK_MAIN = "nav:main"
+    BACK_SANDISI = "nav:sandisi"
     BACK = "nav:back"
     
     # User suggest target
     SUGGEST_TARGET = "suggest:target"
+    SUGGEST_REMOVAL = "suggest:removal"
     SUGGEST_CONFIRM_YES = "suggest:confirm:yes"
     SUGGEST_CONFIRM_EDIT = "suggest:confirm:edit"
+    
+    # Report Removal
+    REMOVAL_CONFIRM_YES = "removal:confirm:yes"
+    REMOVAL_CONFIRM_NO = "removal:confirm:no"
     
     # Targets
     TARGETS_LIST = "targets:list"
@@ -79,6 +85,7 @@ class CallbackData:
     ADMIN_TARGET_EDIT = "admin:target:edit:{id}"
     ADMIN_TARGET_REMOVE = "admin:target:remove:{id}"
     ADMIN_TARGET_VICTORY = "admin:target:victory:{id}"
+    ADMIN_CONFIRM_REMOVAL = "admin:confirm_removal:{id}"
     
     ADMIN_APPROVE_MSG = "admin:approve_msg:{id}"
     ADMIN_REJECT_MSG = "admin:reject_msg:{id}"
@@ -146,11 +153,12 @@ class Keyboards:
     def report_sandisi_menu() -> InlineKeyboardMarkup:
         """Submenu for Report Sandisi features."""
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎯 لیست صفحات", callback_data=CallbackData.TARGETS_LIST)],
-            [InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)],
-            [InlineKeyboardButton(Messages.MENU_STATS, callback_data=CallbackData.MENU_STATS)],
-            [InlineKeyboardButton("➕ پیشنهاد صفحه جدید", callback_data=CallbackData.SUGGEST_TARGET)],
-            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)],
+            [InlineKeyboardButton("🎯 لیست ساندیسی‌ها", callback_data=CallbackData.TARGETS_LIST)],
+            [InlineKeyboardButton("🧃 معرفی ساندیس خور", callback_data=CallbackData.SUGGEST_TARGET)],
+            [
+                InlineKeyboardButton("✌️ گزارش موفقیت", callback_data=CallbackData.SUGGEST_REMOVAL),
+                InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)
+            ],
         ])
     
     @staticmethod
@@ -159,7 +167,7 @@ class Keyboards:
         return InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ صحیح است، ادامه", callback_data=CallbackData.SUGGEST_CONFIRM_YES)],
             [InlineKeyboardButton("✏️ ویرایش نام کاربری", callback_data=CallbackData.SUGGEST_CONFIRM_EDIT)],
-            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)],
         ])
 
     @staticmethod
@@ -167,6 +175,13 @@ class Keyboards:
         """Back to main menu button."""
         return InlineKeyboardMarkup([
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+        ])
+
+    @staticmethod
+    def back_to_sandisi() -> InlineKeyboardMarkup:
+        """Back to report sandisi menu button."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)]
         ])
     
     @staticmethod
@@ -217,7 +232,7 @@ class Keyboards:
         if nav_buttons:
             buttons.append(nav_buttons)
         
-        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)])
         
         return InlineKeyboardMarkup(buttons)
     
@@ -227,7 +242,7 @@ class Keyboards:
         return InlineKeyboardMarkup([
             [InlineKeyboardButton(Messages.VIEW_ALL_VICTORIES, callback_data=CallbackData.VICTORIES_ALL)],
             [InlineKeyboardButton(Messages.CELEBRATE_BUTTON, callback_data=CallbackData.VICTORIES_CELEBRATE)],
-            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)]
         ])
     
     @staticmethod

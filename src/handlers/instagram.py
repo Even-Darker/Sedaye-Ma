@@ -23,14 +23,14 @@ async def show_report_sandisi_menu(update: Update, context: ContextTypes.DEFAULT
         await query.answer()
         
         await query.edit_message_text(
-            Messages.MENU_TARGETS,
+            Messages.REPORT_SANDISI_DESCRIPTION,
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.report_sandisi_menu()
         )
     else:
         # From text menu
         await update.message.reply_text(
-            Messages.MENU_TARGETS,
+            Messages.REPORT_SANDISI_DESCRIPTION,
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.report_sandisi_menu()
         )

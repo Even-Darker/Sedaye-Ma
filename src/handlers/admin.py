@@ -652,6 +652,54 @@ async def reject_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_pending_targets(update, context)
 
 
+@admin_required
+async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Confirm a target removal and create victory."""
+    query = update.callback_query
+    await query.answer()
+    
+    # Extract ID from callback data: admin:confirm_removal:{id}
+    try:
+        target_id = int(query.data.split(":")[-1])
+    except (ValueError, IndexError):
+        await query.edit_message_text("❌ خطا در پردازش درخواست")
+        return
+        
+    async with get_db() as session:
+        # Get target
+        result = await session.execute(
+            select(InstagramTarget).where(InstagramTarget.id == target_id)
+        )
+        target = result.scalar_one_or_none()
+        
+        if not target:
+            await query.edit_message_text("❌ هدف پیدا نشد")
+            return
+            
+        if target.status == TargetStatus.REMOVED:
+            await query.edit_message_text("✅ این پیروزی قبلاً ثبت شده است.")
+            return
+            
+        # Update status
+        target.status = TargetStatus.REMOVED
+        
+        # Create Victory record
+        victory = Victory(
+            target_id=target.id,
+            victory_date=datetime.utcnow()
+        )
+        session.add(victory)
+        await session.commit()
+        
+        # Announce victory to admin
+        await query.edit_message_text(
+            f"🎉 *پیروزی ثبت شد!*\n\n"
+            f"صفحه @{Formatters.escape_markdown(target.ig_handle)} به لیست پیروزی‌ها اضافه شد.\n"
+            f"آمار ربات به‌روزرسانی شد.",
+            parse_mode="MarkdownV2"
+        )
+
+
 # Export handlers
 admin_handlers = [
     CommandHandler("admin", admin_panel),
@@ -660,6 +708,7 @@ admin_handlers = [
     add_admin_conversation,
     CallbackQueryHandler(manage_targets, pattern=f"^{CallbackData.ADMIN_MANAGE_TARGETS}$"),
     CallbackQueryHandler(mark_as_victory, pattern=r"^admin:target:victory:\d+$"),
+    CallbackQueryHandler(confirm_removal, pattern=r"^admin:confirm_removal:\d+$"),
     CallbackQueryHandler(moderate_solidarity, pattern=f"^{CallbackData.ADMIN_SOLIDARITY}$"),
     CallbackQueryHandler(approve_message, pattern=r"^admin:approve_msg:\d+$"),
     CallbackQueryHandler(reject_message, pattern=r"^admin:reject_msg:\d+$"),

@@ -34,16 +34,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def home_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /home command - show main menu."""
-    user_id = update.effective_user.id
-    is_admin = await is_user_admin(user_id)
-    
-    await update.message.reply_text(
-        Messages.MAIN_MENU_HEADER,
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.main_menu_persistent(is_admin=is_admin)
-    )
+
 
 
 async def start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -63,6 +54,6 @@ async def start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Export handlers
 start_handler = CommandHandler("start", start_command)
-home_handler = CommandHandler("home", home_command)
+
 start_callback_handler = CallbackQueryHandler(start_callback, pattern="^start$")
 
