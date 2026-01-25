@@ -71,7 +71,12 @@ async def start_add_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await query.edit_message_text(
-        "➕ *افزودن صفحه جدید*\n\nلطفاً handle اینستاگرام را وارد کنید \\(تکی یا لیست\\):",
+        "➕ *افزودن صفحه جدید*\n\n"
+        "لطفاً handle اینستاگرام را وارد کنید \\(تکی یا لیست\\):\n\n"
+        "مثال:\n"
+        "@user\\_1\n"
+        "@user\\_2\n"
+        "\\.\\.\\.",
         parse_mode="MarkdownV2"
     )
     
