@@ -307,6 +307,13 @@ async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_
                 f"📄 دلایل: {Formatters.escape_markdown(', '.join(reasons))}\n\n"
                 f"_پس از تأیید ادمین‌ها، به لیست اضافه خواهند شد\\._"
             )
+             
+             # Notify Admins
+             try:
+                 from src.services.notification_service import NotificationService
+                 await NotificationService(context.bot).notify_admins_new_submission(added_count, handles)
+             except Exception:
+                 pass
     
     await update.message.reply_text(
         msg,

@@ -36,7 +36,7 @@ Made with ❤️ for the great people of Iran
     MAIN_MENU_HEADER = "📋 *منوی اصلی*"
     
     MENU_TARGETS = "🎯 گزارش ساندیسی"
-    MENU_VICTORIES = "🏆 دیوار پیروزی"
+    MENU_VICTORIES = "🏆 تالار افتخار"
     MENU_STATS = "📊 آمار ما"
     MENU_ANNOUNCEMENTS = "📢 اطلاعیه‌ها"
     MENU_PETITIONS = "📝 پتیشن ها"

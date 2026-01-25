@@ -109,3 +109,41 @@ class NotificationService:
                     pass
             
             return sent_count
+            
+    async def notify_admins_new_submission(self, count: int, handles: List[str]):
+        """Notify all admins about new pending submissions."""
+        from src.database.models import Admin
+        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+        from src.utils.keyboards import CallbackData
+        
+        async with get_db() as session:
+            result = await session.execute(select(Admin.telegram_id))
+            admin_ids = result.scalars().all()
+            
+            preview = ", ".join([f"@{h}" for h in handles[:3]])
+            if len(handles) > 3:
+                preview += f" و {len(handles)-3} مورد دیگر"
+            
+            message = (
+                f"🔔 *گزارش جدید ساندیسی*\n\n"
+                f"👤 یک کاربر {count} صفحه جدید پیشنهاد داد:\n"
+                f"`{Formatters.escape_markdown(preview)}`\n\n"
+            )
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔍 بررسی موارد", callback_data=CallbackData.ADMIN_PENDING_TARGETS)]
+            ])
+            
+            sent_count = 0
+            for uid in admin_ids:
+                try:
+                    await self.bot.send_message(
+                        chat_id=uid,
+                        text=message,
+                        parse_mode="MarkdownV2",
+                        reply_markup=keyboard
+                    )
+                    sent_count += 1
+                except Exception:
+                    pass
+            return sent_count
