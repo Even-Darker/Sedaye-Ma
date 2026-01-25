@@ -157,8 +157,7 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
         await loading_msg.edit_text(
             f"✅ *صفحه تأیید شد*\n\n"
             f"📍 Handle: @{Formatters.escape_markdown(handle)}\n\n"
-            "حالا دلایل گزارش را وارد کنید \\(با کاما جدا کنید\\):\n"
-            "`violence, misinformation, propaganda, human_rights, harassment`",
+            "حالا دلایل گزارش را وارد کنید \\(اگر دلیل خاصی ندارید بزنید ساندیس\\!\\):",
             parse_mode="MarkdownV2"
         )
         return ADDING_TARGET_REASONS
@@ -175,8 +174,7 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
             f"✅ *{len(new_handles)} نام کاربری یافت شد*\n\n"
             f"{preview}\n\n"
             f"آیا مطمئن هستید؟\n\n"
-            "حالا دلایل گزارش را برای **همه این موارد** وارد کنید \\(با کاما جدا کنید\\):\n"
-            "`violence, misinformation, propaganda, human_rights, harassment`",
+            "حالا دلایل گزارش را برای **همه این موارد** وارد کنید \\(اگر دلیل خاصی ندارید بزنید ساندیس\\!\\):",
             parse_mode="MarkdownV2",
             disable_web_page_preview=True
         )
