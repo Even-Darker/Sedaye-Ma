@@ -100,12 +100,19 @@ class CallbackData:
     
     ADMIN_APPROVE_MSG = "admin:approve_msg:{id}"
     ADMIN_REJECT_MSG = "admin:reject_msg:{id}"
+    ADMIN_MESSAGE_PROCESS = "admin:msg:process:{action}:{id}"
     
     ADMIN_CONFIRM_CLOSED_YES = "admin:closed:yes:{id}"
     ADMIN_CONFIRM_CLOSED_NO = "admin:closed:no:{id}"
     
     ADMIN_ADD_ADMIN = "admin:add_admin"
     ADMIN_REMOVE_ADMIN = "admin:remove_admin:{id}"
+    
+    # Reports
+    ADMIN_REPORTS = "admin:reports"
+    ADMIN_REPORTS_CLOSED = "admin:reports:closed"
+    ADMIN_REPORTS_MESSAGES = "admin:reports:messages"
+    ADMIN_VIEW_MESSAGE = "admin:msg:view:{id}"
 
 
 # Persistent bottom button text
@@ -387,20 +394,80 @@ class Keyboards:
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
         ])
     
+
     @staticmethod
-    def admin_menu(is_super_admin: bool = False, pending_count: int = 0) -> InlineKeyboardMarkup:
-        """Admin panel menu."""
+    def admin_menu(is_super_admin: bool = False, pending_count: int = 0, reports_count: int = 0) -> InlineKeyboardMarkup:
+        """Main admin menu."""
+        
         pending_badge = f" ({pending_count})" if pending_count > 0 else ""
+        reports_badge = f" ({reports_count})" if reports_count > 0 else ""
+        
         buttons = [
-            [InlineKeyboardButton(f"✅ تأیید ساندیسی جدید{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)],
-            # [InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)],
+            # [
+            #     InlineKeyboardButton(Messages.ADMIN_ADD_TARGET, callback_data=CallbackData.ADMIN_ADD_TARGET),
+            #     InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)
+            # ],
+            [
+                InlineKeyboardButton(f"{Messages.ADMIN_PENDING_TARGETS}{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)
+            ],
+            [
+                InlineKeyboardButton(f"📄 گزارش‌ها و پیام‌ها{reports_badge}", callback_data=CallbackData.ADMIN_REPORTS),
+            ],
             [InlineKeyboardButton(Messages.ADMIN_ANNOUNCEMENTS, callback_data=CallbackData.ADMIN_ANNOUNCEMENTS)],
             [InlineKeyboardButton(Messages.ADMIN_PETITIONS, callback_data=CallbackData.ADMIN_PETITIONS)],
-            [InlineKeyboardButton(Messages.ADMIN_SOLIDARITY, callback_data=CallbackData.ADMIN_SOLIDARITY)],
+            # [InlineKeyboardButton(Messages.ADMIN_SOLIDARITY, callback_data=CallbackData.ADMIN_SOLIDARITY)],
         ]
+        
         if is_super_admin:
-            buttons.append([InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data=CallbackData.ADMIN_MANAGE_ADMINS)])
+            buttons.append(
+                [
+                    InlineKeyboardButton(Messages.ADMIN_STATS, callback_data=CallbackData.ADMIN_STATS),
+                    InlineKeyboardButton(Messages.ADMIN_MANAGE_ADMINS, callback_data=CallbackData.ADMIN_MANAGE_ADMINS),
+                ]
+            )
+            
         return InlineKeyboardMarkup(buttons)
+    
+    @staticmethod
+    def admin_reports_menu(closed_count: int = 0, msgs_count: int = 0) -> InlineKeyboardMarkup:
+        """Menu for reports types (with notification badges)."""
+        closed_badge = f" ({closed_count})"
+        msgs_badge = f" ({msgs_count})"
+        
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"صفحه بسته شده{closed_badge} 📌", callback_data=CallbackData.ADMIN_REPORTS_CLOSED)],
+            [InlineKeyboardButton(f"پیامهای کاربران{msgs_badge} 💬", callback_data=CallbackData.ADMIN_REPORTS_MESSAGES)],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_ADMIN)],
+        ])
+    
+    @staticmethod
+    def admin_messages_list(logs: list) -> InlineKeyboardMarkup:
+        """List of user messages."""
+        buttons = []
+        for log in logs:
+            # Showing partial ID or content
+            preview = (log.message_content[:20] + "...") if log.message_content else "No Content"
+            buttons.append([
+                InlineKeyboardButton(
+                    f"📩 {preview}",
+                    callback_data=CallbackData.ADMIN_VIEW_MESSAGE.format(id=log.id)
+                )
+            ])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_REPORTS)])
+        return InlineKeyboardMarkup(buttons)
+        
+    ADMIN_MESSAGE_PROCESS = "admin:msg:process:{action}:{id}"
+
+    @staticmethod
+    def admin_message_process(log_id: int) -> InlineKeyboardMarkup:
+        """Actions for a user message (Queue Mode)."""
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("❌ حذف", callback_data=CallbackData.ADMIN_MESSAGE_PROCESS.format(action="reject", id=log_id)),
+                InlineKeyboardButton("✅ بررسی شد", callback_data=CallbackData.ADMIN_MESSAGE_PROCESS.format(action="confirm", id=log_id)),
+            ],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_REPORTS)]
+        ])
     
     @staticmethod
     def admin_pending_approval(target_id: int) -> InlineKeyboardMarkup:
@@ -453,11 +520,10 @@ class Keyboards:
         """Admin confirmation for closed report."""
         return InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("🏆 تایید بسته شدن", callback_data=CallbackData.ADMIN_CONFIRM_CLOSED_YES.format(id=target_id)),
+                InlineKeyboardButton("❌", callback_data=CallbackData.ADMIN_CONFIRM_CLOSED_NO.format(id=target_id)),
+                InlineKeyboardButton("✅", callback_data=CallbackData.ADMIN_CONFIRM_CLOSED_YES.format(id=target_id)),
             ],
-            [
-                InlineKeyboardButton("❌ رد کردن", callback_data=CallbackData.ADMIN_CONFIRM_CLOSED_NO.format(id=target_id)),
-            ]
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_REPORTS)]
         ])
 
     @staticmethod

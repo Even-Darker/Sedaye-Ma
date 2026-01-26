@@ -53,6 +53,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     super_admin = await is_super_admin(user_id)
     
     pending_count = 0
+    reports_count = 0
     try:
         # Get pending targets count
         async with get_db() as session:
@@ -62,24 +63,54 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             )
             pending_count = result.scalar() or 0
+            
+            # Get pending Reports (Closed) count
+            from src.database.models import UserConcernLog
+            stmt_closed = (
+                select(InstagramTarget.id)
+                .join(UserConcernLog, UserConcernLog.target_id == InstagramTarget.id)
+                .where(UserConcernLog.concern_type == "closed")
+                .where(InstagramTarget.status != TargetStatus.REMOVED)
+                .group_by(InstagramTarget.id)
+            )
+            closed_cnt = len((await session.execute(stmt_closed)).all())
+            
+            # Get pending Messages count
+            stmt_msgs = (
+                select(func.count(UserConcernLog.id))
+                .where(UserConcernLog.concern_type == "other")
+            )
+            msgs_cnt = (await session.execute(stmt_msgs)).scalar() or 0
+            
+            reports_count = closed_cnt + msgs_cnt
+
     except Exception as e:
-        logger.error(f"Error fetching pending count: {e}")
-        # Continue without count
+        logger.error(f"Error getting pending count: {e}")
+        pending_count = 0
+        reports_count = 0
+    
+    text = (
+        f"💼 *پنل مدیریت*\n"
+        f"سطح دسترسی: *{'مدیر کل' if super_admin else 'مدیر'}*\n"
+        "یکی از گزینه‌های زیر را انتخاب کنید:"
+    )
+    
+    markup = Keyboards.admin_menu(is_super_admin=super_admin, pending_count=pending_count, reports_count=reports_count)
         
     try:
         if update.callback_query:
             query = update.callback_query
             await query.answer()
             await query.edit_message_text(
-                Messages.ADMIN_HEADER,
+                text,
                 parse_mode="MarkdownV2",
-                reply_markup=Keyboards.admin_menu(is_super_admin=super_admin, pending_count=pending_count)
+                reply_markup=markup
             )
         else:
             await update.message.reply_text(
-                Messages.ADMIN_HEADER,
+                text,
                 parse_mode="MarkdownV2",
-                reply_markup=Keyboards.admin_menu(is_super_admin=super_admin, pending_count=pending_count)
+                reply_markup=markup
             )
     except Exception as e:
         logger.error(f"Error showing admin panel: {e}")
@@ -800,36 +831,265 @@ async def approve_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target.status = TargetStatus.ACTIVE
         await session.commit()
         
-        await query.answer(f"✅ صفحه @{target.ig_handle} تأیید شد!")
-        
-        # Show next pending or return
+        await query.answer("✅ صفحه تأیید شد و به لیست فعال اضافه شد")
         await show_pending_targets(update, context)
 
 
 @admin_required
 async def reject_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Reject and delete a pending target."""
+    """Reject a pending target."""
     query = update.callback_query
     target_id = int(query.data.split(":")[-1])
     
     async with get_db() as session:
-        result = await session.execute(
-            select(InstagramTarget).where(InstagramTarget.id == target_id)
-        )
-        target = result.scalar_one_or_none()
-        
-        if not target:
-            await query.answer("❌ صفحه یافت نشد", show_alert=True)
-            return
-        
-        handle = target.ig_handle
-        await session.delete(target)
-        await session.commit()
-        
-        await query.answer(f"❌ صفحه @{handle} رد شد")
-        
-        # Show next pending or return
+        target = await session.get(InstagramTarget, target_id)
+        if target:
+            await session.delete(target)
+            await session.commit()
+            
+        await query.answer("❌ پیشنهاد رد و حذف شد")
         await show_pending_targets(update, context)
+
+
+@admin_required
+async def confirm_closed_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin confirms a page is closed."""
+    query = update.callback_query
+    
+    # Parse Data: admin:closed:yes:{id}
+    parts = query.data.split(":")
+    action = parts[2] # yes/no
+    target_id = int(parts[3])
+    
+    async with get_db() as session:
+        if action == "no":
+            # REJECT: Clear reports so it leaves the queue
+            from src.database.models import UserConcernLog
+            stmt = (
+                select(UserConcernLog)
+                .where(UserConcernLog.target_id == target_id)
+                .where(UserConcernLog.concern_type == "closed")
+            )
+            logs = (await session.execute(stmt)).scalars().all()
+            for log in logs:
+                await session.delete(log)
+            await session.commit()
+            
+            await query.answer(f"❌ گزارش‌ها پاک شدند ({len(logs)} مورد)")
+        
+        else:
+            # ACCEPT: Remove target
+            target = await session.get(InstagramTarget, target_id)
+            if not target:
+                await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
+            elif target.status == TargetStatus.REMOVED:
+                await query.answer("⚠️ قبلاً ثبت شده")
+            else:
+                # Mark removed
+                target.status = TargetStatus.REMOVED
+                target.removed_at = datetime.utcnow()
+                
+                # Victory
+                victory = Victory(
+                    target_id=target.id,
+                    final_report_count=target.anonymous_report_count,
+                    celebration_message="Page closed reported by users."
+                )
+                session.add(victory)
+                await session.commit()
+                await query.answer("🏆 صفحه بسته شد! لیست بروزرسانی شد.")
+
+    # Show next report (or empty state)
+    await show_closed_reports(update, context)
+
+
+# ═══════════════════════════════════════════════════════════════
+# ADMIN REPORTS & MESSAGES
+# ═══════════════════════════════════════════════════════════════
+
+@admin_required
+async def show_reports_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show Reports Menu with dynamic counters."""
+    from sqlalchemy import func
+    from src.database.models import UserConcernLog
+    
+    query = update.callback_query
+    await query.answer()
+
+    async with get_db() as session:
+        # 1. Count Closed Reports (Targets with at least 1 closed log)
+        # Note: We group by target_id, so we count *targets* displayed in the queue, not total logs.
+        stmt_closed = (
+            select(InstagramTarget.id)
+            .join(UserConcernLog, UserConcernLog.target_id == InstagramTarget.id)
+            .where(UserConcernLog.concern_type == "closed")
+            .where(InstagramTarget.status != TargetStatus.REMOVED)
+            .group_by(InstagramTarget.id)
+        )
+        closed_count = len((await session.execute(stmt_closed)).all())
+        
+        # 2. Count User Messages (Total 'other' logs)
+        stmt_msgs = (
+            select(func.count(UserConcernLog.id))
+            .where(UserConcernLog.concern_type == "other")
+        )
+        msgs_count = (await session.execute(stmt_msgs)).scalar() or 0
+    
+    await query.edit_message_text(
+        "💼 *مدیریت گزارش‌ها*\n\n"
+        "📊 در این بخش می‌توانید گزارش‌های دریافتی از کاربران را بررسی کنید:\n\n"
+        "📌 *صفحه بسته شده*: صفحاتی که کاربران گزارش داده‌اند از دسترس خارج شده‌اند \\(جهت حذف از لیست\\)\\.\n"
+        "💬 *پیام‌های کاربران*: سایر گزارش‌ها، انتقادات یا پیام‌های متنی که کاربران ارسال کرده‌اند\\.",
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.admin_reports_menu(closed_count, msgs_count)
+    )
+
+
+@admin_required
+async def show_closed_reports(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show pending closed reports in a Queue (one by one)."""
+    from sqlalchemy import func
+    from src.database.models import UserConcernLog
+    
+    query = update.callback_query
+    # Don't answer yet if we are recursive (called from other handler)
+    # But usually safe to answer multiple times (it just no-ops)
+    try:
+        await query.answer()
+    except:
+        pass
+    
+    async with get_db() as session:
+        # Get TOP reported target (Queue style)
+        stmt = (
+            select(InstagramTarget, func.count(UserConcernLog.id).label("count"))
+            .join(UserConcernLog, UserConcernLog.target_id == InstagramTarget.id)
+            .where(UserConcernLog.concern_type == "closed")
+            .where(InstagramTarget.status != TargetStatus.REMOVED)
+            .group_by(InstagramTarget.id)
+            .order_by(func.count(UserConcernLog.id).desc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        row = result.first()
+        
+        if not row:
+            # Empty queue
+            buttons = [[InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_REPORTS)]]
+            await query.edit_message_text(
+                "📉 *گزارش‌های بسته شدن*\n\n✅ همه گزارش‌ها بررسی شدند\\! موردی باقی نمانده است\\.",
+                parse_mode="MarkdownV2",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+            return
+
+        target, count = row
+        
+        # Format nice card
+        message = (
+            f"🚨 *گزارش بسته شدن صفحه*\n\n"
+            f"🧃 ساندیسی: [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle})\n"
+            f"📉 گزارش شده توسط *{count}* کاربر\n\n"
+            f"آیا این صفحه بسته شده است؟"
+        )
+        
+        await query.edit_message_text(
+            message,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.admin_confirm_closed(target.id),
+            disable_web_page_preview=True
+        )
+
+
+@admin_required
+async def show_user_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show user messages (Concerns) in a Queue (one by one)."""
+    from src.database.models import UserConcernLog
+    
+    query = update.callback_query
+    try:
+        await query.answer()
+    except:
+        pass
+    
+    async with get_db() as session:
+        stmt = (
+            select(UserConcernLog, InstagramTarget)
+            .join(InstagramTarget, InstagramTarget.id == UserConcernLog.target_id)
+            .where(UserConcernLog.concern_type == "other")
+            .order_by(UserConcernLog.created_at.desc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        row = result.first()
+        
+        if not row:
+             buttons = [[InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_REPORTS)]]
+             await query.edit_message_text(
+                "💬 *پیام‌های کاربران*\n\n✅ همه پیام‌ها بررسی شدند\\!",
+                parse_mode="MarkdownV2",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+             return
+             
+        log, target = row
+        
+        text = f"""
+💬 *پیام کاربر*
+
+👤 درباره: [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle})
+📅 تاریخ: {Formatters.escape_markdown(log.created_at.strftime('%Y-%m-%d %H:%M'))}
+
+📝 *متن:*
+{Formatters.escape_markdown(log.message_content or 'Empty')}
+
+_برای رفتن به پیام بعدی، یکی از گزینه‌ها را انتخاب کنید:_
+"""
+        await query.edit_message_text(
+            text,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.admin_message_process(log.id),
+            disable_web_page_preview=True
+        )
+
+
+@admin_required
+async def process_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Process user message (Confirm/Reject) and show next."""
+    query = update.callback_query
+    # Format: admin:msg:process:{action}:{id}
+    parts = query.data.split(":")
+    action = parts[3] # confirm / reject
+    log_id = int(parts[4])
+    
+    async with get_db() as session:
+        from src.database.models import UserConcernLog
+        log = await session.get(UserConcernLog, log_id)
+        
+        if not log:
+            await query.answer("⚠️ پیام یافت نشد (شاید قبلاً حذف شده)")
+        else:
+            # Both Confirm and Reject delete the log from Queue (Mark as processed)
+            # In a real system, we might mark `processed=True`
+            # Here we DELETE to clear the queue as requested.
+            await session.delete(log)
+            await session.commit()
+            
+            if action == "confirm":
+                await query.answer("✅ پیام بررسی شد")
+            else:
+                await query.answer("❌ پیام حذف شد")
+                
+    # Show next
+    await show_user_messages(update, context)
+
+
+async def view_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Legacy/Unused handler - redirected to Queue."""
+    await show_user_messages(update, context)
+
+
+
 
 
 @admin_required
@@ -882,76 +1142,46 @@ async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-@admin_required
-async def admin_process_closed_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process closed report confirmation (Yes/No)."""
-    query = update.callback_query
-    action = query.data.split(":")[2] # 'yes' or 'no'
-    target_id = int(query.data.split(":")[-1])
-    
-    if action == "no":
-        await query.answer("❌ گزارش رد شد (تغییری ایجاد نشد)")
-        await query.edit_message_reply_markup(reply_markup=None)
-        await query.edit_message_text(f"{query.message.text}\n\n❌ توسط ادمین رد شد.")
-        return
 
-    # Action YES
-    async with get_db() as session:
-        result = await session.execute(
-            select(InstagramTarget).where(InstagramTarget.id == target_id)
-        )
-        target = result.scalar_one_or_none()
-        
-        if not target:
-            await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
-            await query.edit_message_text("❌ هدف پیدا نشد")
-            return
-            
-        if target.status == TargetStatus.REMOVED:
-            await query.answer("⚠️ قبلاً ثبت شده", show_alert=True)
-            await query.edit_message_text(f"{query.message.text}\n\n✅ قبلاً ثبت شده بود.")
-            return
+# ═══════════════════════════════════════════════════════════════
+# FINAL HANDLER EXPORT
+# ═══════════════════════════════════════════════════════════════
 
-        # Update status
-        target.status = TargetStatus.REMOVED
-        target.removed_at = datetime.utcnow()
-        
-        victory = Victory(
-            target_id=target.id,
-            victory_date=datetime.utcnow(),
-            final_report_count=target.anonymous_report_count
-        )
-        session.add(victory)
-        await session.commit()
-        
-        await query.answer("🏆 پیروزی ثبت شد!", show_alert=True)
-        await query.edit_message_text(
-            f"{query.message.text}\n\n🏆 *تایید شد: پیروزی ثبت شد!*",
-            parse_mode="MarkdownV2"
-        )
-
-
-# Export handlers
 admin_handlers = [
-    CommandHandler("admin", admin_panel),
-    CallbackQueryHandler(admin_panel, pattern=r"^admin:panel$"),
     add_target_conversation,
     add_admin_conversation,
-    #TODO: We should be able to manage targets from admin panel, modify priorities, add or remove targets
-    # CallbackQueryHandler(manage_targets, pattern=f"^{CallbackData.ADMIN_MANAGE_TARGETS}$"),
-    CallbackQueryHandler(mark_as_victory, pattern=r"^admin:target:victory:\d+$"),
-    CallbackQueryHandler(confirm_removal, pattern=r"^admin:confirm_removal:\d+$"),
-    CallbackQueryHandler(moderate_solidarity, pattern=f"^{CallbackData.ADMIN_SOLIDARITY}$"),
-    CallbackQueryHandler(approve_message, pattern=r"^admin:approve_msg:\d+$"),
-    CallbackQueryHandler(reject_message, pattern=r"^admin:reject_msg:\d+$"),
-    CallbackQueryHandler(manage_admins, pattern=f"^{CallbackData.ADMIN_MANAGE_ADMINS}$"),
-    CallbackQueryHandler(remove_admin, pattern=r"^admin:remove_admin:\d+$"),
+    
+    # Menu Navigation
+    CallbackQueryHandler(admin_panel, pattern="^admin:panel$"),
+    CallbackQueryHandler(admin_panel, pattern=f"^{CallbackData.BACK_ADMIN}$"),
+    CallbackQueryHandler(show_reports_menu, pattern=f"^{CallbackData.ADMIN_REPORTS}$"),
+
+    
+    # Reports Flow
+    CallbackQueryHandler(show_closed_reports, pattern=f"^{CallbackData.ADMIN_REPORTS_CLOSED}$"),
+    CallbackQueryHandler(show_user_messages, pattern=f"^{CallbackData.ADMIN_REPORTS_MESSAGES}$"),
+    CallbackQueryHandler(process_message_handler, pattern=r"^admin:msg:process:(confirm|reject):\d+$"),
+    
+    # Pending Approval Flow
     CallbackQueryHandler(show_pending_targets, pattern=f"^{CallbackData.ADMIN_PENDING_TARGETS}$"),
     CallbackQueryHandler(approve_target, pattern=r"^admin:approve_target:\d+$"),
     CallbackQueryHandler(reject_target, pattern=r"^admin:reject_target:\d+$"),
-    CallbackQueryHandler(reject_target, pattern=r"^admin:reject_target:\d+$"),
-    # Quick Action Confirmation
-    CallbackQueryHandler(admin_process_closed_report, pattern=r"^admin:closed:(yes|no):\d+$"),
-    # Back to Admin Panel
-    CallbackQueryHandler(admin_panel, pattern=f"^{CallbackData.BACK_ADMIN}$"),
+    
+    # Target Management
+    CallbackQueryHandler(manage_targets, pattern=f"^{CallbackData.ADMIN_MANAGE_TARGETS}$"),
+    CallbackQueryHandler(mark_as_victory, pattern=r"^admin:target:victory:\d+$"),
+    CallbackQueryHandler(confirm_removal, pattern=r"^admin:confirm_removal:\d+$"),
+    
+    # Closed Page Validation (Yes/No)
+    # Note: confirm_closed_handler handles 'admin:closed:yes/no'
+    CallbackQueryHandler(confirm_closed_handler, pattern=r"^admin:closed:(yes|no):\d+$"),
+    
+    # Admin Management
+    CallbackQueryHandler(manage_admins, pattern=f"^{CallbackData.ADMIN_MANAGE_ADMINS}$"),
+    CallbackQueryHandler(remove_admin, pattern=r"^admin:remove_admin:\d+$"),
+    
+    # Solidarity Moderation
+    CallbackQueryHandler(moderate_solidarity, pattern=f"^{CallbackData.ADMIN_SOLIDARITY}$"),
+    CallbackQueryHandler(approve_message, pattern=r"^admin:approve_msg:\d+$"),
+    CallbackQueryHandler(reject_message, pattern=r"^admin:reject_msg:\d+$"),
 ]

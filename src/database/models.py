@@ -325,6 +325,7 @@ class UserConcernLog(Base):
     # SHA256(user_id + salt)
     user_hash = Column(String(64), nullable=False)
     concern_type = Column(String(50), nullable=False) # "closed", "other"
+    message_content = Column(Text, nullable=True) # User's custom message (for "other")
     
     created_at = Column(DateTime, default=datetime.utcnow)
     

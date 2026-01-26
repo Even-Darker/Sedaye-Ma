@@ -440,7 +440,7 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
             try:
                 await context.bot.send_message(
                     chat_id=admin.telegram_id,
-                    text=f"🚨 *گزارش بسته شدن صفحه*\n\n👤 کاربر: ناشناس (Anonymous)\nSandisi: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
+                    text=f"🚨 *گزارش بسته شدن صفحه*\n\nSandisi: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
                     parse_mode="HTML",
                     reply_markup=Keyboards.admin_confirm_closed(target.id)
                 )
@@ -485,7 +485,41 @@ async def receive_concern_message(update: Update, context: ContextTypes.DEFAULT_
             select(InstagramTarget).where(InstagramTarget.id == target_id)
         )).scalar_one_or_none()
         
-        # Notify Admins
+        # Save to Database
+        from hashlib import sha256
+        from config import settings
+        from src.database.models import UserConcernLog
+        
+        salt = settings.encryption_key or "default_salt" 
+        user_hash = sha256(f"{user.id}{salt}".encode()).hexdigest()
+        
+        # Check duplicate (one "other" per target per user?)
+        # Or allow multiple messages? Maybe limit spam?
+        # Let's check duplicate for now
+        existing_log = await session.execute(
+            select(UserConcernLog).where(
+                UserConcernLog.target_id == target_id,
+                UserConcernLog.user_hash == user_hash,
+                UserConcernLog.concern_type == "other"
+            )
+        )
+        if existing_log.scalar_one_or_none():
+             # Update message instead of duplicate? Or reject?
+             # Rejecting is safer for spam
+             await update.message.reply_text("⚠️ شما قبلاً پیامی درباره این صفحه ثبت کرده‌اید.")
+             return ConversationHandler.END
+
+        # Create Log
+        new_log = UserConcernLog(
+            target_id=target_id, 
+            user_hash=user_hash, 
+            concern_type="other",
+            message_content=text 
+        )
+        session.add(new_log)
+        await session.commit()
+        
+        # Notify Admins (Keep existing notification as backup/alert)
         from src.database.models import Admin
         admins = (await session.execute(select(Admin))).scalars().all()
         
@@ -501,7 +535,7 @@ async def receive_concern_message(update: Update, context: ContextTypes.DEFAULT_
 
     await update.message.reply_text(
         "✅ پیام شما برای ادمین‌ها ارسال شد.\nممنون از گزارش شما 🙏",
-        reply_markup=Keyboards.back_to_sandisi() # Or back to list?
+        reply_markup=Keyboards.back_to_sandisi()
     )
     return ConversationHandler.END
 
