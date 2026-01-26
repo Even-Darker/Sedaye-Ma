@@ -6,9 +6,10 @@ from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from sqlalchemy import select
 
-from config import Messages
+from config import Messages, settings
 from src.utils import Keyboards, Formatters
 from src.utils.keyboards import CallbackData
+from src.utils.decorators import rate_limit
 from src.database import get_db, InstagramTarget, ReportTemplate
 from src.database.models import TargetStatus
 
@@ -302,12 +303,12 @@ async def show_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message,
                 parse_mode="MarkdownV2",
                 reply_markup=Keyboards.target_actions(target.id, target.ig_handle)
-            )
         else:
             await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
 
 
-async def i_reported(update: Update, context: ContextTypes.DEFAULT_TYPE):
+@rate_limit(limit=20, window=60, penalty_time=3600) # 20 reports per minute, else 1h ban
+async def i_reported_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle 'I reported' button - increment counter."""
     query = update.callback_query
     
@@ -436,7 +437,7 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
             try:
                 await context.bot.send_message(
                     chat_id=admin.telegram_id,
-                    text=f"🚨 *گزارش بسته شدن صفحه*\n\n👤 کاربر: ناشناس (Anonymous)\nTarget: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
+                    text=f"🚨 *گزارش بسته شدن صفحه*\n\n👤 کاربر: ناشناس (Anonymous)\nSandisi: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
                     parse_mode="HTML",
                     reply_markup=Keyboards.admin_confirm_closed(target.id)
                 )

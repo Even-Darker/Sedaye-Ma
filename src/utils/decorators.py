@@ -73,3 +73,105 @@ def super_admin_required(func):
         return None
     
     return wrapper
+
+# ═══════════════════════════════════════════════════════════════
+# RATE LIMITING
+# ═══════════════════════════════════════════════════════════════
+
+class RateLimiter:
+    """
+    Singleton Rate Limiter using Sliding Window logic.
+    Tracks user requests and manages penalty boxes.
+    """
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(RateLimiter, cls).__new__(cls)
+            cls._instance.user_requests = {}  # {user_id: [timestamp1, timestamp2]}
+            cls._instance.banned_users = {}   # {user_id: banned_until_timestamp}
+        return cls._instance
+
+    def is_allowed(self, user_id: int, limit: int, window: int, penalty_time: int) -> tuple[bool, str]:
+        """
+        Check if request is allowed.
+        Returns: (is_allowed, reason)
+        """
+        import time
+        now = time.time()
+        
+        # 1. Check if user is banned
+        if user_id in self.banned_users:
+            banned_until = self.banned_users[user_id]
+            if now < banned_until:
+                return False, "banned"
+            else:
+                # Ban expired
+                del self.banned_users[user_id]
+                # Also clear old requests to give a fresh start
+                if user_id in self.user_requests:
+                    del self.user_requests[user_id]
+        
+        # 2. Initialize user history if needed
+        if user_id not in self.user_requests:
+            self.user_requests[user_id] = []
+            
+        # 3. Clean old requests (Sliding Window)
+        # Keep only timestamps within the window
+        history = self.user_requests[user_id]
+        valid_since = now - window
+        
+        # Filter in place (efficient for small lists)
+        new_history = [t for t in history if t > valid_since]
+        self.user_requests[user_id] = new_history
+        
+        # 4. Check Limit
+        if len(new_history) >= limit:
+            # PENALTY BOX!
+            self.banned_users[user_id] = now + penalty_time
+            return False, "limit_exceeded"
+            
+        # 5. Record Request
+        self.user_requests[user_id].append(now)
+        return True, "ok"
+
+
+def rate_limit(limit: int, window: int, penalty_time: int = 3600):
+    """
+    Decorator to rate limit handlers.
+    
+    Args:
+        limit (int): Max requests allowed in window.
+        window (int): Time window in seconds.
+        penalty_time (int): Ban duration in seconds if limit exceeded (default 1h).
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+            if not update.effective_user:
+                return await func(update, context, *args, **kwargs)
+                
+            user_id = update.effective_user.id
+            limiter = RateLimiter()
+            
+            allowed, reason = limiter.is_allowed(user_id, limit, window, penalty_time)
+            
+            if not allowed:
+                if reason == "limit_exceeded":
+                    # First time exceeding: Warn them? Or silent?
+                    # Silent is better for security, but a generic warning helps normal users.
+                    # We'll stop propagation immediately.
+                    # Optional: Log it
+                    print(f"RATE LIMIT: User {user_id} banned for {penalty_time}s")
+                    pass
+                elif reason == "banned":
+                    # Already banned, ignore completely
+                    pass
+                
+                # Stop processing (return None)
+                return None
+                
+            return await func(update, context, *args, **kwargs)
+            
+        return wrapper
+    return decorator
