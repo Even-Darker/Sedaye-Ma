@@ -273,7 +273,7 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     # ADMIN
     # ═══════════════════════════════════════════════════════════════
     
-    ADMIN_HEADER = "🔐 *پنل مدیریت*"
+    ADMIN_HEADER = "🔐 پنل مدیریت"
     ADMIN_UNAUTHORIZED = "⛔ شما دسترسی ندارید\\."
     
     ADMIN_ADD_TARGET = "➕ افزودن صفحه"

@@ -47,9 +47,6 @@ async def handle_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == Messages.MENU_SOLIDARITY:
         await solidarity.show_solidarity(update, context)
         
-    elif text == Messages.MENU_RESOURCES:
-        await resources.show_resources(update, context)
-        
     elif text == Messages.MENU_SETTINGS:
         await settings.show_settings(update, context)
         
