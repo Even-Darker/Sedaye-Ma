@@ -112,6 +112,11 @@ class CallbackData:
     ADMIN_ADD_ADMIN = "admin:add_admin"
     ADMIN_REMOVE_ADMIN = "admin:remove_admin:{id}"
 
+    # Configs
+    CONFIGS_PAGE = "configs:page:{page}"
+    CONFIG_REPORT = "config:report:{id}"
+    CONFIG_COPY = "config:copy:{id}"
+
 
 # Persistent bottom button text
 MAIN_MENU_BUTTON = "🏠 منوی اصلی"
@@ -162,7 +167,7 @@ class Keyboards:
             [KeyboardButton(Messages.MENU_TARGETS)],  # Row 1: Report Sandisi (Main)
             [KeyboardButton(Messages.MENU_ANNOUNCEMENTS), KeyboardButton(Messages.MENU_PETITIONS)],
             [KeyboardButton(Messages.MENU_SOLIDARITY), KeyboardButton(Messages.MENU_RESOURCES)],
-            [KeyboardButton(Messages.MENU_SETTINGS)]
+            [KeyboardButton(Messages.MENU_FREE_CONFIGS), KeyboardButton(Messages.MENU_SETTINGS)]
         ]
         
         if is_admin:
@@ -298,6 +303,28 @@ class Keyboards:
         buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_FILTER)])
         
         return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def free_configs_pagination(config_id: int, current_page: int, total_pages: int) -> InlineKeyboardMarkup:
+        """Pagination for free configs with actions."""
+        # Action Buttons
+        actions = []
+        actions.append(InlineKeyboardButton("📋 کپی کانفیگ", callback_data=CallbackData.CONFIG_COPY.format(id=config_id)))
+        actions.append(InlineKeyboardButton("🚨 گزارش خرابی", callback_data=CallbackData.CONFIG_REPORT.format(id=config_id)))
+        
+        # Navigation Buttons
+        nav_buttons = []
+        if current_page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️ قبلی", callback_data=CallbackData.CONFIGS_PAGE.format(page=current_page-1)))
+        
+        if current_page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("بعدی ▶️", callback_data=CallbackData.CONFIGS_PAGE.format(page=current_page+1)))
+
+        return InlineKeyboardMarkup([
+            actions,
+            nav_buttons,
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+        ])
     
     @staticmethod
     def victories_actions() -> InlineKeyboardMarkup:
