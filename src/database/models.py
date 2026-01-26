@@ -224,6 +224,7 @@ class FreeConfig(Base):
     description = Column(String(255), nullable=True)  # Optional note (e.g., "US Server", "Fast")
 
     is_active = Column(Boolean, default=True)
+    report_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_admin_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
 
@@ -359,3 +360,24 @@ class UserConcernLog(Base):
     
     def __repr__(self):
         return f"<ConcernLog(target={self.target_id}, type={self.concern_type})>"
+
+
+class UserConfigReport(Base):
+    """
+    Tracks which users have reported which free configs.
+    Prevents duplicate reporting (spam).
+    STORES HASHED IDS ONLY.
+    """
+    __tablename__ = "user_config_reports"
+
+    id = Column(Integer, primary_key=True)
+    config_id = Column(Integer, ForeignKey("free_configs.id"), nullable=False)
+    user_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('config_id', 'user_hash', name='uq_config_user_hash'),
+    )
+
+    def __repr__(self):
+        return f"<UserConfigReport(config={self.config_id})>"
