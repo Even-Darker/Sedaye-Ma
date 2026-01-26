@@ -11,6 +11,7 @@ class CallbackData:
     # Main menu
     MENU_TARGETS = "menu:targets"
     MENU_VICTORIES = "menu:victories"
+    MENU_FREE_CONFIGS = "menu:free_configs"
     MENU_STATS = "menu:stats"
     MENU_ANNOUNCEMENTS = "menu:announcements"
     MENU_PETITIONS = "menu:petitions"
@@ -86,12 +87,16 @@ class CallbackData:
     # Admin
     ADMIN_ADD_TARGET = "admin:add_target"
     ADMIN_MANAGE_TARGETS = "admin:manage_targets"
+    ADMIN_ADD_CONFIG = "admin:add_config"
+    ADMIN_MANAGE_CONFIGS = "admin:manage_configs"
+    ADMIN_DELETE_CONFIG = "admin:delete_config:{id}"
     ADMIN_ANNOUNCEMENTS = "admin:announcements"
     ADMIN_PETITIONS = "admin:petitions"
     ADMIN_SOLIDARITY = "admin:solidarity"
     ADMIN_STATS = "admin:stats"
     ADMIN_MANAGE_ADMINS = "admin:manage_admins"
     ADMIN_PENDING_TARGETS = "admin:pending_targets"
+    ADMIN_PANEL = "admin:panel"
     
     ADMIN_TARGET_EDIT = "admin:target:edit:{id}"
     ADMIN_TARGET_REMOVE = "admin:target:remove:{id}"
@@ -136,6 +141,9 @@ class Keyboards:
         """Main menu keyboard."""
         buttons = [
             [InlineKeyboardButton(Messages.MENU_TARGETS, callback_data=CallbackData.MENU_TARGETS)],
+            [InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)],
+            [InlineKeyboardButton(Messages.MENU_FREE_CONFIGS, callback_data=CallbackData.MENU_FREE_CONFIGS)],
+            [InlineKeyboardButton(Messages.MENU_STATS, callback_data=CallbackData.MENU_STATS)],
             [InlineKeyboardButton(Messages.MENU_ANNOUNCEMENTS, callback_data=CallbackData.MENU_ANNOUNCEMENTS)],
             [InlineKeyboardButton(Messages.MENU_PETITIONS, callback_data=CallbackData.MENU_PETITIONS)],
             [InlineKeyboardButton(Messages.MENU_SOLIDARITY, callback_data=CallbackData.MENU_SOLIDARITY)],
@@ -389,6 +397,8 @@ class Keyboards:
         buttons = [
             [InlineKeyboardButton(f"✅ تأیید صفحات پیشنهادی{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)],
             [InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)],
+            [InlineKeyboardButton("📡 مدیریت کانفیگ‌ها", callback_data=CallbackData.ADMIN_MANAGE_CONFIGS)],
+            [InlineKeyboardButton("➕ افزودن کانفیگ", callback_data=CallbackData.ADMIN_ADD_CONFIG)],
             [InlineKeyboardButton(Messages.ADMIN_ANNOUNCEMENTS, callback_data=CallbackData.ADMIN_ANNOUNCEMENTS)],
             [InlineKeyboardButton(Messages.ADMIN_PETITIONS, callback_data=CallbackData.ADMIN_PETITIONS)],
             [InlineKeyboardButton(Messages.ADMIN_SOLIDARITY, callback_data=CallbackData.ADMIN_SOLIDARITY)],
