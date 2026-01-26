@@ -1375,6 +1375,7 @@ async def admin_process_closed_report(update: Update, context: ContextTypes.DEFA
 admin_handlers = [
     add_target_conversation,
     add_admin_conversation,
+    add_config_conversation,
     
     # Menu Navigation
     CallbackQueryHandler(admin_panel, pattern="^admin:panel$"),
