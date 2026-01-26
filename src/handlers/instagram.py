@@ -436,7 +436,7 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
             try:
                 await context.bot.send_message(
                     chat_id=admin.telegram_id,
-                    text=f"🚨 *گزارش بسته شدن صفحه*\n\n👤 کاربر: {query.from_user.mention_html()}\nTarget: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
+                    text=f"🚨 *گزارش بسته شدن صفحه*\n\n👤 کاربر: ناشناس (Anonymous)\nTarget: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
                     parse_mode="HTML",
                     reply_markup=Keyboards.admin_confirm_closed(target.id)
                 )
@@ -489,7 +489,7 @@ async def receive_concern_message(update: Update, context: ContextTypes.DEFAULT_
             try:
                 await context.bot.send_message(
                     chat_id=admin.telegram_id,
-                    text=f"📨 *پیام کاربر (مشکل صفحه)*\n\n👤 کاربر: {user.mention_html()}\nTarget: @{target.ig_handle if target else 'Unknown'}\n\n💬 پیام:\n{text}",
+                    text=f"📨 *پیام کاربر (مشکل صفحه)*\n\n👤 کاربر: ناشناس (Anonymous)\nTarget: @{target.ig_handle if target else 'Unknown'}\n\n💬 پیام:\n{text}",
                     parse_mode="HTML"
                 )
             except Exception:
