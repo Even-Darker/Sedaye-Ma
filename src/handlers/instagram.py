@@ -82,17 +82,28 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
         
         # Apply Filter
+        # Default flag
+        show_report_btn = True
+
+        # Apply Filter
         if filter_type == CallbackData.FILTER_NEW:
             # Subquery: IDs user has reported
             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
             stmt = stmt.where(InstagramTarget.id.not_in(subq))
-            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \(گزارش نشده توسط شما\)*"
+            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \\(گزارش نشده توسط شما\\)*"
             
         elif filter_type == CallbackData.FILTER_REPORTED:
             # Subquery: IDs user HAS reported
             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
             stmt = stmt.where(InstagramTarget.id.in_(subq))
-            header_text = f"{Messages.TARGETS_HEADER}\n\n✅ *گزارش‌های من*"
+            # Enhanced description for reported validation
+            header_text = (
+                f"{Messages.TARGETS_HEADER}\n\n"
+                "✅ *گزارش‌های من*\n"
+                "لیست صفحاتی که شما قبلاً گزارش داده‌اید\\.\n"
+                "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\."
+            )
+            show_report_btn = False
             
         else:
             header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*"
@@ -135,7 +146,12 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             header_text,
             parse_mode="MarkdownV2",
-            reply_markup=Keyboards.targets_list(targets, page=0, total_pages=total_pages)
+            reply_markup=Keyboards.targets_list(
+                targets, 
+                page=0, 
+                total_pages=total_pages, 
+                show_report_button=show_report_btn
+            )
         )
 
 
@@ -163,15 +179,25 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     async with get_db() as session:
         stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
         
+        # Default flag
+        show_report_btn = True
+        
         if filter_type == CallbackData.FILTER_NEW:
             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
             stmt = stmt.where(InstagramTarget.id.not_in(subq))
-            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \(گزارش نشده توسط شما\)*"
+            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \\(گزارش نشده توسط شما\\)*"
             
         elif filter_type == CallbackData.FILTER_REPORTED:
             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
             stmt = stmt.where(InstagramTarget.id.in_(subq))
-            header_text = f"{Messages.TARGETS_HEADER}\n\n✅ *گزارش‌های من*"
+            # Enhanced description for reported validation
+            header_text = (
+                f"{Messages.TARGETS_HEADER}\n\n"
+                "✅ *گزارش‌های من*\n"
+                "لیست صفحاتی که شما قبلاً گزارش داده‌اید\\.\n"
+                "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\."
+            )
+            show_report_btn = False
         else:
             header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*"
             
@@ -198,7 +224,12 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             header_text,
             parse_mode="MarkdownV2",
-            reply_markup=Keyboards.targets_list(targets, page=page, total_pages=total_pages)
+            reply_markup=Keyboards.targets_list(
+                targets, 
+                page=page, 
+                total_pages=total_pages, 
+                show_report_button=show_report_btn
+            )
         )
 
 
@@ -429,7 +460,7 @@ async def concern_other_handler(update: Update, context: ContextTypes.DEFAULT_TY
     
     await query.answer()
     await query.edit_message_text(
-        "💬 *توضیحات شما*\n\nلطفاً پیام خود را بنویسید \(توضیح دهید مشکل چیست یا چه اتفاقی افتاده\):",
+        "💬 *توضیحات شما*\n\nلطفاً پیام خود را بنویسید \\(توضیح دهید مشکل چیست یا چه اتفاقی افتاده\\):",
         parse_mode="MarkdownV2"
     )
     return WAITING_FOR_CONCERN_MESSAGE
