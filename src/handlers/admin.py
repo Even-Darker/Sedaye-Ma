@@ -8,7 +8,10 @@ from telegram.ext import (
     MessageHandler, filters, ConversationHandler
 )
 import re
+import logging
 from sqlalchemy import select
+
+logger = logging.getLogger(__name__)
 from datetime import datetime
 
 from config import Messages, settings
@@ -500,11 +503,14 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
     text = update.message.text.strip()
     user_id = update.effective_user.id
     
-    # Remove @ if present
-    username = text[1:] if text.startswith("@") else text
+    display_name = text
+    username_query = text
     
-    new_admin_id = None
-    display_name = username
+    # Ensure @ for username lookup (API usually expects @username for queries)
+    if not text.isdigit() and not text.startswith("@"):
+        username_query = f"@{text}"
+    elif text.startswith("@"):
+        username_query = text
     
     # Check if message is forwarded
     if update.message.forward_origin:
@@ -535,17 +541,19 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
          return ADDING_ADMIN_ID
 
     # 1. Try as User ID (digits)
-    elif username.isdigit():
-        new_admin_id = int(username)
+    elif text.isdigit():
+        new_admin_id = int(text)
         display_name = str(new_admin_id)
     
     # 2. Try as Username (via API)
     else:
         try:
-             chat = await context.bot.get_chat(username)
+             chat = await context.bot.get_chat(username_query)
              new_admin_id = chat.id
              display_name = chat.username or chat.first_name
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to find user with query '{username_query}': {e}")
+            # logger.exception(e) # Optional: print stack trace if needed
             await update.message.reply_text(
                 "⚠️ *کاربر یافت نشد*\n\n"
                 "ربات تلگرام تنها زمانی می‌تواند نام کاربری را پیدا کند که آن کاربر، ربات را `start` کرده باشد\\.\n\n"
