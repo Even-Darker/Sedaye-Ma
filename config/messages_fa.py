@@ -192,7 +192,7 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     # PETITIONS
     # ═══════════════════════════════════════════════════════════════
     
-    PETITIONS_HEADER = "✊ *پتیشن‌ها*"
+    PETITIONS_HEADER = "📝 *پتیشن‌ها*"
     PETITIONS_SUBTITLE = "_صدای خود را به گوش جهان برسانید_"
     PETITIONS_EMPTY = "پتیشن فعالی وجود ندارد\\."
     
@@ -252,7 +252,7 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     NOTIF_URGENT = "⚡ اطلاعیه‌های فوری"
     NOTIF_NEWS = "📰 اخبار"
     NOTIF_VICTORIES = "🏆 پیروزی‌ها"
-    NOTIF_PETITIONS = "✊ پتیشن‌ها"
+    NOTIF_PETITIONS = "📝 پتیشن‌ها"
     
     NOTIF_ENABLED = "✓ فعال"
     NOTIF_DISABLED = "○ غیرفعال"
@@ -270,7 +270,7 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     ADMIN_PENDING_TARGETS = "✅ تأیید ساندیسی"
     ADMIN_MANAGE_TARGETS = "🧃 مدیریت ساندیس ها"
     ADMIN_ANNOUNCEMENTS = "📢 اطلاعیه‌ها"
-    ADMIN_PETITIONS = "✊ پتیشن‌ها"
+    ADMIN_PETITIONS = "📝 پتیشن‌ها"
     ADMIN_SOLIDARITY = "💬 تأیید پیام‌ها"
     ADMIN_MANAGE_ADMINS = "👥 مدیریت ادمین‌ها"
     ADMIN_STATS = "📊 آمار"
