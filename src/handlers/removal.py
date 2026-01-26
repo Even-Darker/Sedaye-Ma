@@ -86,12 +86,55 @@ async def receive_removal_handle(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data["removal_target_id"] = target.id
     context.user_data["removal_handle"] = handle
     
+    # RATE LIMIT CHECK (24 Hours)
+    # ---------------------------------------------------------
+    user_id = update.effective_user.id
+    from hashlib import sha256
+    from config import settings
+    from src.database.models import UserVictoryLog
+    from datetime import datetime, timedelta
+    
+    salt = settings.encryption_key or "default_salt" 
+    user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+    
+    async with get_db() as session:
+        # Check last submission
+        log_result = await session.execute(
+            select(UserVictoryLog)
+            .where(
+                UserVictoryLog.target_id == target.id,
+                UserVictoryLog.user_hash == user_hash
+            )
+            .order_by(UserVictoryLog.created_at.desc())
+            .limit(1)
+        )
+        last_log = log_result.scalar_one_or_none()
+        
+        if last_log:
+            # Check if within 24 hours
+            if datetime.utcnow() - last_log.created_at < timedelta(hours=24):
+                await loading_msg.edit_text(
+                    "⚠️ *قبلاً گزارش شده است*\n\n"
+                    "شما قبلاً حذف شدن این صفحه را گزارش داده‌اید\\.\n"
+                    "برای جلوگیری از اسپم، هر کاربر فقط هر ۲۴ ساعت یکبار می‌تواند برای یک صفحه گزارش موفقیت ارسال کند\\.\n\n"
+                    "لطفا فردا تلاش کنید 🙏",
+                    parse_mode="MarkdownV2",
+                    reply_markup=Keyboards.back_to_sandisi()
+                )
+                return ConversationHandler.END
+
     if not profile.exists:
         # Page is gone! Good sign.
         await loading_msg.edit_text(
             Messages.REMOVE_REPORT_NOT_FOUND,
             parse_mode="MarkdownV2"
         )
+        # Log this submission
+        async with get_db() as session:
+            new_log = UserVictoryLog(target_id=target.id, user_hash=user_hash)
+            session.add(new_log)
+            await session.commit()
+            
         # Auto-submit to admins
         await submit_removal_request(context, target.id, handle, auto_confirmed=True)
         return ConversationHandler.END
@@ -118,6 +161,20 @@ async def confirm_manual_removal(update: Update, context: ContextTypes.DEFAULT_T
     if query.data == CallbackData.REMOVAL_CONFIRM_YES:
         target_id = context.user_data.get("removal_target_id")
         handle = context.user_data.get("removal_handle")
+        user_id = update.effective_user.id
+        
+        # Log this submission (Manual confirmation)
+        from hashlib import sha256
+        from config import settings
+        from src.database.models import UserVictoryLog
+        
+        salt = settings.encryption_key or "default_salt" 
+        user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+        
+        async with get_db() as session:
+            new_log = UserVictoryLog(target_id=target_id, user_hash=user_hash)
+            session.add(new_log)
+            await session.commit()
         
         await submit_removal_request(context, target_id, handle, auto_confirmed=False)
         
@@ -133,34 +190,14 @@ async def confirm_manual_removal(update: Update, context: ContextTypes.DEFAULT_T
 
 async def submit_removal_request(context: ContextTypes.DEFAULT_TYPE, target_id: int, handle: str, auto_confirmed: bool):
     """Submit removal request to admins."""
-    # Notify all admins
-    admin_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ تأیید حذف و ثبت پیروزی", callback_data=CallbackData.ADMIN_CONFIRM_REMOVAL.format(id=target_id))],
-        [InlineKeyboardButton("بررسی صفحه", url=f"https://instagram.com/{handle}")]
-    ])
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"submit_removal_request called for target {target_id}, handle {handle}")
     
-    status_icon = "🟢" if auto_confirmed else "⚠️"
-    status_text = "تایید خودکار (صفحه یافت نشد)" if auto_confirmed else "گزارش دستی (صفحه هنوز دیده می‌شود)"
+    from src.services.notification_service import NotificationService
     
-    msg = (
-        f"🏆 *گزارش حذف صفحه*\n\n"
-        f"📍 Handle: @{Formatters.escape_markdown(handle)}\n"
-        f"وضعیت ربات: {status_text} {status_icon}\n\n"
-        "آیا حذف این صفحه را تأیید می‌کنید؟"
-    )
-    
-    # Fetch admins from config/DB and notify
-    # For now sending to super admins for simplicity, can expand to all admins
-    for admin_id in settings.super_admin_ids:
-        try:
-            await context.bot.send_message(
-                chat_id=admin_id,
-                text=msg,
-                parse_mode="MarkdownV2",
-                reply_markup=admin_keyboard
-            )
-        except Exception:
-            pass
+    service = NotificationService(context.bot)
+    await service.notify_admins_removal_request(target_id, handle, auto_confirmed)
             
 
 async def cancel_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):

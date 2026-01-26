@@ -247,7 +247,12 @@ class Keyboards:
         buttons = []
         
         for target in targets:
-            priority_emoji = "🔴" if target.priority <= 3 else "🟡" if target.priority <= 6 else "🟢"
+            # TODO: Add priority emoji
+            # priority_emoji = "🔴" if target.priority <= 3 else "🟡" if target.priority <= 6 else "🟢"
+            priority_emoji = ""
+            # Determine button text
+            concern_text = "⚠️ اشکال" if show_report_button else "📝 گزارش"
+            
             # Row 2: Quick Actions
             row = [
                 InlineKeyboardButton(
@@ -255,7 +260,7 @@ class Keyboards:
                     url=f"https://instagram.com/{target.ig_handle}"
                 ),
                 InlineKeyboardButton(
-                    "مشکل داره",   # "Concerns" 
+                    concern_text,
                     callback_data=CallbackData.TARGET_REPORT_CLOSED.format(id=target.id)
                 )
             ]
@@ -387,16 +392,14 @@ class Keyboards:
         """Admin panel menu."""
         pending_badge = f" ({pending_count})" if pending_count > 0 else ""
         buttons = [
-            [InlineKeyboardButton(f"✅ تأیید صفحات پیشنهادی{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)],
-            [InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)],
+            [InlineKeyboardButton(f"✅ تأیید ساندیسی جدید{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)],
+            # [InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)],
             [InlineKeyboardButton(Messages.ADMIN_ANNOUNCEMENTS, callback_data=CallbackData.ADMIN_ANNOUNCEMENTS)],
             [InlineKeyboardButton(Messages.ADMIN_PETITIONS, callback_data=CallbackData.ADMIN_PETITIONS)],
             [InlineKeyboardButton(Messages.ADMIN_SOLIDARITY, callback_data=CallbackData.ADMIN_SOLIDARITY)],
-            [InlineKeyboardButton(Messages.ADMIN_STATS, callback_data=CallbackData.ADMIN_STATS)],
         ]
         if is_super_admin:
             buttons.append([InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data=CallbackData.ADMIN_MANAGE_ADMINS)])
-        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
         return InlineKeyboardMarkup(buttons)
     
     @staticmethod

@@ -297,11 +297,11 @@ async def manage_targets(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         targets = result.scalars().all()
         
-        message = "📋 *مدیریت صفحات*\n\n"
+        message = "📋🧃 *مدیریت صفحات*\n\n"
         
         buttons = []
         for target in targets:
-            message += f"• @{Formatters.escape_markdown(target.ig_handle)} \\- {target.anonymous_report_count} گزارش\n"
+            message += f"• [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle}) \\- {target.anonymous_report_count} گزارش\n"
             buttons.append([
                 InlineKeyboardButton(
                     f"@{target.ig_handle}",
@@ -758,7 +758,7 @@ async def show_pending_targets(update: Update, context: ContextTypes.DEFAULT_TYP
         if not target:
             user_id = update.effective_user.id
             await query.edit_message_text(
-                "✅ *صفحات پیشنهادی*\n\n_هیچ صفحه‌ای در انتظار تأیید نیست\\._",
+                "🧃 *ساندیسی‌های پیشنهادی*\n\n_هیچ صفحه‌ای در انتظار تأیید نیست\\._",
                 parse_mode="MarkdownV2",
                 reply_markup=Keyboards.back_to_admin()
             )
@@ -768,7 +768,7 @@ async def show_pending_targets(update: Update, context: ContextTypes.DEFAULT_TYP
         reasons_text = ", ".join(target.report_reasons) if target.report_reasons else "ندارد"
         message = (
             f"📋 *صفحه در انتظار تأیید*\n\n"
-            f"📍 Handle: @{Formatters.escape_markdown(target.ig_handle)}\n"
+            f"📍 Handle: [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle})\n"
             f"📋 دلایل: {Formatters.escape_markdown(reasons_text)}\n"
             f"🔗 [مشاهده صفحه](https://instagram.com/{target.ig_handle})"
         )
@@ -873,10 +873,11 @@ async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await session.commit()
         
         # Announce victory to admin
+        # Announce victory to admin
         await query.edit_message_text(
-            f"🎉 *پیروزی ثبت شد!*\n\n"
-            f"صفحه @{Formatters.escape_markdown(target.ig_handle)} به لیست پیروزی‌ها اضافه شد.\n"
-            f"آمار ربات به‌روزرسانی شد.",
+            f"🎉 *پیروزی ثبت شد\\!*\n\n"
+            f"صفحه @{Formatters.escape_markdown(target.ig_handle)} به لیست پیروزی‌ها اضافه شد\\.\n"
+            f"آمار ربات به‌روزرسانی شد\\.",
             parse_mode="MarkdownV2"
         )
 
@@ -936,7 +937,8 @@ admin_handlers = [
     CallbackQueryHandler(admin_panel, pattern=r"^admin:panel$"),
     add_target_conversation,
     add_admin_conversation,
-    CallbackQueryHandler(manage_targets, pattern=f"^{CallbackData.ADMIN_MANAGE_TARGETS}$"),
+    #TODO: We should be able to manage targets from admin panel, modify priorities, add or remove targets
+    # CallbackQueryHandler(manage_targets, pattern=f"^{CallbackData.ADMIN_MANAGE_TARGETS}$"),
     CallbackQueryHandler(mark_as_victory, pattern=r"^admin:target:victory:\d+$"),
     CallbackQueryHandler(confirm_removal, pattern=r"^admin:confirm_removal:\d+$"),
     CallbackQueryHandler(moderate_solidarity, pattern=f"^{CallbackData.ADMIN_SOLIDARITY}$"),

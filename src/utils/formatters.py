@@ -88,7 +88,7 @@ class Formatters:
         followers = Formatters.format_number(target.followers_count)
         
         return f"""
-🎉 *{Messages.LATEST_VICTORY}*
+🎉 *{Messages.LATEST_VICTORY}*:
 
 @{Formatters.escape_markdown(target.ig_handle)} \\- {Messages.VICTORY_REMOVED}
 🗓️ {Formatters.escape_markdown(date_str)}
