@@ -74,7 +74,7 @@ class Formatters:
 *@{Formatters.escape_markdown(target.ig_handle)}*
 {Formatters.escape_markdown(target.display_name or '')}
 
-📊 {report_count} {Messages.TARGET_REPORTS}    👥 {followers} {Messages.TARGET_FOLLOWERS}
+📊 {report_count} {Messages.TARGET_REPORTS}
 
 {progress_bar} {int(progress * 100)}%
 
@@ -91,7 +91,6 @@ class Formatters:
 🎉 *{Messages.LATEST_VICTORY}*
 
 @{Formatters.escape_markdown(target.ig_handle)} \\- {Messages.VICTORY_REMOVED}
-👥 {followers} followers silenced
 {Messages.VICTORY_REPORTS_COUNT.format(victory.final_report_count)}
 🗓️ {Formatters.escape_markdown(date_str)}
 
@@ -154,7 +153,7 @@ class Formatters:
 {Messages.STATS_ACTIVE_TARGETS.format(stats.get('active_targets', 0))}
 {Messages.STATS_REMOVED.format(stats.get('removed_targets', 0))}
 {Messages.STATS_TOTAL_REPORTS.format(Formatters.escape_markdown(Formatters.format_number(stats.get('total_reports', 0))))}
-{Messages.STATS_FOLLOWERS_SILENCED.format(Formatters.escape_markdown(Formatters.format_number(stats.get('followers_silenced', 0))))}
+
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
