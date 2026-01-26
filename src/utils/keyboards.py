@@ -146,10 +146,10 @@ class Keyboards:
             [InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)],
             [InlineKeyboardButton(Messages.MENU_FREE_CONFIGS, callback_data=CallbackData.MENU_FREE_CONFIGS)],
             [InlineKeyboardButton(Messages.MENU_STATS, callback_data=CallbackData.MENU_STATS)],
-            [InlineKeyboardButton(Messages.MENU_ANNOUNCEMENTS, callback_data=CallbackData.MENU_ANNOUNCEMENTS)],
+            # [InlineKeyboardButton(Messages.MENU_ANNOUNCEMENTS, callback_data=CallbackData.MENU_ANNOUNCEMENTS)],
             [InlineKeyboardButton(Messages.MENU_PETITIONS, callback_data=CallbackData.MENU_PETITIONS)],
-            [InlineKeyboardButton(Messages.MENU_SOLIDARITY, callback_data=CallbackData.MENU_SOLIDARITY)],
-            [InlineKeyboardButton(Messages.MENU_RESOURCES, callback_data=CallbackData.MENU_RESOURCES)],
+            # [InlineKeyboardButton(Messages.MENU_SOLIDARITY, callback_data=CallbackData.MENU_SOLIDARITY)],
+            # [InlineKeyboardButton(Messages.MENU_RESOURCES, callback_data=CallbackData.MENU_RESOURCES)],
             [InlineKeyboardButton(Messages.MENU_SETTINGS, callback_data=CallbackData.MENU_SETTINGS)],
         ]
         # Admin only: show admin panel button
@@ -163,7 +163,8 @@ class Keyboards:
         buttons = [
             [KeyboardButton(Messages.MENU_TARGETS)],  # Row 1: Report Sandisi (Main)
             [KeyboardButton(Messages.MENU_ANNOUNCEMENTS), KeyboardButton(Messages.MENU_PETITIONS)],
-            [KeyboardButton(Messages.MENU_SOLIDARITY), KeyboardButton(Messages.MENU_RESOURCES)],
+            #TODO: Add solidarity menu
+            # [KeyboardButton(Messages.MENU_SOLIDARITY)],
             [KeyboardButton(Messages.MENU_FREE_CONFIGS), KeyboardButton(Messages.MENU_SETTINGS)]
         ]
         
@@ -455,7 +456,10 @@ class Keyboards:
             ],
             [InlineKeyboardButton(Messages.ADMIN_ANNOUNCEMENTS, callback_data=CallbackData.ADMIN_ANNOUNCEMENTS)],
             [InlineKeyboardButton(Messages.ADMIN_PETITIONS, callback_data=CallbackData.ADMIN_PETITIONS)],
-            # [InlineKeyboardButton(Messages.ADMIN_SOLIDARITY, callback_data=CallbackData.ADMIN_SOLIDARITY)],
+            [
+                InlineKeyboardButton("📡 مدیریت کانفیگ‌ها", callback_data=CallbackData.ADMIN_MANAGE_CONFIGS),
+                InlineKeyboardButton("➕ افزودن کانفیگ", callback_data=CallbackData.ADMIN_ADD_CONFIG),
+            ],
         ]
         
         if is_super_admin:
@@ -496,25 +500,6 @@ class Keyboards:
         buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_REPORTS)])
         return InlineKeyboardMarkup(buttons)
 
-    @staticmethod    
-    def admin_menu(is_super_admin: bool = False, pending_count: int = 0) -> InlineKeyboardMarkup:
-        """Admin panel menu."""
-        pending_badge = f" ({pending_count})" if pending_count > 0 else ""
-        buttons = [
-            [InlineKeyboardButton(f"✅ تأیید صفحات پیشنهادی{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)],
-            [InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)],
-            [InlineKeyboardButton("📡 مدیریت کانفیگ‌ها", callback_data=CallbackData.ADMIN_MANAGE_CONFIGS)],
-            [InlineKeyboardButton("➕ افزودن کانفیگ", callback_data=CallbackData.ADMIN_ADD_CONFIG)],
-            [InlineKeyboardButton(Messages.ADMIN_ANNOUNCEMENTS, callback_data=CallbackData.ADMIN_ANNOUNCEMENTS)],
-            [InlineKeyboardButton(Messages.ADMIN_PETITIONS, callback_data=CallbackData.ADMIN_PETITIONS)],
-            [InlineKeyboardButton(Messages.ADMIN_SOLIDARITY, callback_data=CallbackData.ADMIN_SOLIDARITY)],
-            [InlineKeyboardButton(Messages.ADMIN_STATS, callback_data=CallbackData.ADMIN_STATS)],
-        ]
-        if is_super_admin:
-            buttons.append([InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data=CallbackData.ADMIN_MANAGE_ADMINS)])
-        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
-        return InlineKeyboardMarkup(buttons)
-        
     ADMIN_MESSAGE_PROCESS = "admin:msg:process:{action}:{id}"
 
     @staticmethod
