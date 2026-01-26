@@ -809,10 +809,10 @@ async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target.status = TargetStatus.REMOVED
         target.removed_at = datetime.utcnow()
         
-        # Create Victory record
         victory = Victory(
             target_id=target.id,
-            victory_date=datetime.utcnow()
+            victory_date=datetime.utcnow(),
+            final_report_count=target.anonymous_report_count
         )
         session.add(victory)
         await session.commit()
@@ -860,10 +860,10 @@ async def admin_process_closed_report(update: Update, context: ContextTypes.DEFA
         target.status = TargetStatus.REMOVED
         target.removed_at = datetime.utcnow()
         
-        # Create Victory
         victory = Victory(
             target_id=target.id,
-            victory_date=datetime.utcnow()
+            victory_date=datetime.utcnow(),
+            final_report_count=target.anonymous_report_count
         )
         session.add(victory)
         await session.commit()
