@@ -91,7 +91,6 @@ class Formatters:
 🎉 *{Messages.LATEST_VICTORY}*
 
 @{Formatters.escape_markdown(target.ig_handle)} \\- {Messages.VICTORY_REMOVED}
-{Messages.VICTORY_REPORTS_COUNT.format(victory.final_report_count)}
 🗓️ {Formatters.escape_markdown(date_str)}
 
 "{Messages.VICTORY_CELEBRATE}" 🔥
