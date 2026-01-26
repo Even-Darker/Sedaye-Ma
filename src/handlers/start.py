@@ -52,8 +52,15 @@ async def start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /help command (shows Resources menu)."""
+    from src.handlers.resources import show_resources
+    await show_resources(update, context)
+
+
 # Export handlers
 start_handler = CommandHandler("start", start_command)
+help_command_handler = CommandHandler("help", help_command)
 
 start_callback_handler = CallbackQueryHandler(start_callback, pattern="^start$")
 

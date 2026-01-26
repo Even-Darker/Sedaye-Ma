@@ -63,6 +63,7 @@ async def post_init(application: Application) -> None:
     # Set bot commands
     commands = [
         BotCommand("start", "شروع ربات"),
+        BotCommand("help", "راهنما"),
     ]
     await application.bot.set_my_commands(commands)
     logger.info("Bot commands set successfully!")
@@ -88,7 +89,9 @@ def main():
     
     # Register handlers
     # Start command and main menu button
+    from src.handlers.start import help_command_handler
     application.add_handler(start_handler)
+    application.add_handler(help_command_handler)
     application.add_handler(start_callback_handler)    
 
     
