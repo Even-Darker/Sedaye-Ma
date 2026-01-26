@@ -24,6 +24,7 @@ class CallbackData:
     BACK_FILTER = "nav:filter"
     BACK = "nav:back"
     BACK_ADMIN = "nav:admin"
+    ADMIN_PANEL = "admin:panel"
     
     # User suggest target
     SUGGEST_TARGET = "suggest:target"
@@ -65,6 +66,7 @@ class CallbackData:
     # Petitions
     PETITION_VIEW = "petition:view:{id}"
     PETITION_SIGN = "petition:sign:{id}"
+    PETITION_NAV = "petition:nav:{offset}"
     PETITIONS_PAGE = "petitions:page:{page}"
     
     # Solidarity
@@ -115,21 +117,9 @@ class CallbackData:
     ADMIN_VIEW_MESSAGE = "admin:msg:view:{id}"
 
 
-# Persistent bottom button text
-MAIN_MENU_BUTTON = "🏠 منوی اصلی"
-
 
 class Keyboards:
     """Keyboard builders for the bot."""
-    
-    @staticmethod
-    def persistent_menu() -> ReplyKeyboardMarkup:
-        """Persistent keyboard with main menu shortcut."""
-        return ReplyKeyboardMarkup(
-            [[KeyboardButton(MAIN_MENU_BUTTON)]],
-            resize_keyboard=True,
-            is_persistent=True
-        )
     
     @staticmethod
     def start() -> InlineKeyboardMarkup:
@@ -326,13 +316,29 @@ class Keyboards:
         ])
     
     @staticmethod
-    def petition_actions(petition_id: int, url: str) -> InlineKeyboardMarkup:
-        """Petition action buttons."""
-        return InlineKeyboardMarkup([
-            [InlineKeyboardButton(Messages.SIGN_PETITION, url=url)],
-            [InlineKeyboardButton(Messages.SHARE_BUTTON, switch_inline_query=f"petition_{petition_id}")],
-            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.MENU_PETITIONS)]
+    def petition_actions(petition_id: int, url: str, offset: int = 0, total: int = 1) -> InlineKeyboardMarkup:
+        """Petition action buttons with navigation."""
+        buttons = []
+
+        buttons.append([
+            InlineKeyboardButton(Messages.SHARE_BUTTON, switch_inline_query=f"petition_{petition_id}"),
+            InlineKeyboardButton(Messages.SIGN_PETITION, url=url),
         ])
+        
+        # Navigation Row
+        nav_row = []
+        if offset > 0:
+            nav_row.append(InlineKeyboardButton(Messages.PREV_BUTTON, callback_data=CallbackData.PETITION_NAV.format(offset=offset-1)))
+            
+        # Indicator (optional, or just logic)
+        
+        if offset < total - 1:
+            nav_row.append(InlineKeyboardButton(Messages.NEXT_BUTTON, callback_data=CallbackData.PETITION_NAV.format(offset=offset+1)))
+            
+        if nav_row:
+            buttons.append(nav_row)
+        
+        return InlineKeyboardMarkup(buttons)
     
     @staticmethod
     def solidarity_actions() -> InlineKeyboardMarkup:

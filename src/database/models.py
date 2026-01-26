@@ -186,6 +186,7 @@ class Petition(Base):
     # Progress tracking
     signatures_goal = Column(Integer, default=100000)
     signatures_current = Column(Integer, default=0)
+    visit_count = Column(Integer, default=0)
     
     # Status
     status = Column(SQLEnum(PetitionStatus), default=PetitionStatus.ACTIVE)

@@ -99,12 +99,12 @@ class Formatters:
     @staticmethod
     def format_petition_card(petition) -> str:
         """Format a petition for display."""
-        progress_percent = petition.progress_percent
-        filled = int(progress_percent / 10)
-        progress_bar = "█" * filled + "░" * (10 - filled)
+        # progress_percent = petition.progress_percent
+        # filled = int(progress_percent / 10)
+        # progress_bar = "█" * filled + "░" * (10 - filled)
         
-        current = Formatters.format_number(petition.signatures_current)
-        goal = Formatters.format_number(petition.signatures_goal)
+        current = Formatters.escape_markdown(Formatters.format_number(petition.signatures_current))
+        goal = Formatters.escape_markdown(Formatters.format_number(petition.signatures_goal))
         
         status_line = ""
         if petition.status.value == "achieved":
@@ -113,14 +113,15 @@ class Formatters:
             status_line = f"\n{Messages.PETITION_EXPIRED}"
         elif petition.days_remaining is not None:
             status_line = f"\n{Messages.PETITION_DEADLINE.format(petition.days_remaining)}"
+            
+        status_line = Formatters.escape_markdown(status_line)
         
         return f"""
-✊ *{Formatters.escape_markdown(petition.title)}*
+📢  *{Formatters.escape_markdown(petition.title)}*
 
 📝 {Formatters.escape_markdown(petition.description[:200])}{'\\.\\.\\.' if len(petition.description) > 200 else ''}
 
 📊 {Messages.PETITION_PROGRESS.format(current, goal)}
-{progress_bar} {progress_percent}%{status_line}
 """
     
     @staticmethod
@@ -179,4 +180,15 @@ class Formatters:
 ```
 {template.template_en}
 ```
+"""
+    
+    @staticmethod
+    def format_new_petition_announcement(petition) -> str:
+        """Format a new petition announcement."""
+        return f"""
+📢 *A new petition is added\\!*
+
+[{Formatters.escape_markdown(petition.title)}]({petition.url})
+
+Explanation: {Formatters.escape_markdown(petition.description)}
 """

@@ -201,7 +201,9 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     PETITION_ACHIEVED = "✅ به هدف رسیدیم\\!"
     PETITION_EXPIRED = "⌛ منقضی شده"
     
-    SIGN_PETITION = "🖊️ امضا کن"
+    SIGN_PETITION = "🔗 مشاهده"
+    NEXT_BUTTON = "بعدی ➡️"
+    PREV_BUTTON = "قبلی ⬅️"
     
     # ═══════════════════════════════════════════════════════════════
     # SOLIDARITY WALL
