@@ -397,7 +397,6 @@ class Keyboards:
                 f"{Messages.NOTIF_PETITIONS} [{toggle_text(prefs.petitions)}]",
                 callback_data=CallbackData.NOTIF_TOGGLE.format(type="petitions")
             )],
-            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
         ])
     
 
