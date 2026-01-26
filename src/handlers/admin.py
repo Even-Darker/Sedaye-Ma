@@ -485,8 +485,10 @@ async def start_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(
         "➕ *افزودن ادمین جدید*\n\n"
-        "لطفاً نام کاربری \\(Username\\) یا شناسه عددی \\(User ID\\) کاربر را وارد کنید:\n"
-        "مثال: @username یا 123456789",
+        "لطفاً یکی از موارد زیر را ارسال کنید:\n\n"
+        "1️⃣ نام کاربری \\(@username\\)\n"
+        "2️⃣ شناسه عددی \\(User ID\\)\n"
+        "3️⃣ *فوروارد کردن یک پیام از کاربر*",
         parse_mode="MarkdownV2"
     )
     
@@ -504,8 +506,36 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
     new_admin_id = None
     display_name = username
     
+    # Check if message is forwarded
+    if update.message.forward_origin:
+        # Telegram Update: forward_origin is used for general forwards in newer API, 
+        # but PTB often abstracts this or uses forward_from for user forwards.
+        # Let's check standard forward_from first.
+        origin = update.message.forward_origin
+        
+        # Determine origin type (PTB v13 vs v20 distinction, assuming v20 object structure for safety)
+        if hasattr(origin, 'type') and origin.type == 'user':
+             new_admin_id = origin.sender_user.id
+             display_name = origin.sender_user.first_name
+        elif update.message.forward_from:
+             new_admin_id = update.message.forward_from.id
+             display_name = update.message.forward_from.first_name
+        else:
+             await update.message.reply_text(
+                "⚠️ *شناسه مخفی شده است*\n\n"
+                "کاربر تنظیمات حریم خصوصی خود را طوری تنظیم کرده که شناسه او در فوروارد نمایش داده نمی‌شود\\.\n"
+                "لطفاً از روش **شناسه عددی (User ID)** استفاده کنید\\.",
+                parse_mode="MarkdownV2"
+            )
+             return ADDING_ADMIN_ID
+
+    elif not text:
+         # No text and no forward?
+         await update.message.reply_text("❌ لطفاً یک پیام متنی یا فوروارد ارسال کنید.")
+         return ADDING_ADMIN_ID
+
     # 1. Try as User ID (digits)
-    if username.isdigit():
+    elif username.isdigit():
         new_admin_id = int(username)
         display_name = str(new_admin_id)
     
@@ -520,9 +550,9 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
                 "⚠️ *کاربر یافت نشد*\n\n"
                 "ربات تلگرام تنها زمانی می‌تواند نام کاربری را پیدا کند که آن کاربر، ربات را `start` کرده باشد\\.\n\n"
                 "💡 *راه حل‌ها:*\n"
-                "۱\\. از کاربر بخواهید ربات را استارت کند، سپس دوباره امتحان کنید\\.\n"
-                "۲\\. یا *شناسه عددی \\(User ID\\)* کاربر را وارد کنید\\.\n"
-                "_\\(می‌توانید از ربات‌های userinfobot برای دریافت ID استفاده کنید\\)_",
+                "۱\\. *فوروارد کردن پیام*: یک پیام از کاربر را به اینجا فوروارد کنید\\.\n"
+                "2\\. *استارت*: از کاربر بخواهید ربات را استارت کند\\.\n"
+                "3\\. *شناسه عددی*: شناسه عددی \\(User ID\\) کاربر را وارد کنید\\.",
                 parse_mode="MarkdownV2"
             )
             return ADDING_ADMIN_ID
