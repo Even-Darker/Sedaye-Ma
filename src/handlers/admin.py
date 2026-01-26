@@ -733,7 +733,8 @@ async def manage_configs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = await session.execute(
             select(FreeConfig)
             .where(FreeConfig.is_active == True)
-            .order_by(FreeConfig.created_at.desc())
+            .order_by(FreeConfig.report_count.desc(), FreeConfig.created_at.desc())
+            .limit(15)
         )
         configs = result.scalars().all()
 
@@ -748,12 +749,17 @@ async def manage_configs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = "📋 *مدیریت کانفیگ‌ها*\n\n"
         keyboard = []
 
-        for config in configs:
+        for index, config in enumerate(configs, 1):
             desc = f" - {config.description}" if config.description else ""
-            short_uri = config.config_uri[:30] + "..." if len(config.config_uri) > 30 else config.config_uri
-            message += f"• `{Formatters.escape_markdown(short_uri)}`{Formatters.escape_markdown(desc)}\n"
+            report_badge = f" 🚨 {config.report_count}" if config.report_count > 0 else ""
+            
+            # Show FULL URI in code block for easy copying
+            
+            message += f"*{index}\.* {Formatters.escape_markdown(desc)}{report_badge}\n"
+            message += f"`{Formatters.escape_markdown(config.config_uri)}`\n\n"
+            
             keyboard.append([InlineKeyboardButton(
-                f"🗑 حذف: {short_uri[:20]}...",
+                f"🗑 حذف شماره #{index}",
                 callback_data=CallbackData.ADMIN_DELETE_CONFIG.format(id=config.id)
             )])
 
