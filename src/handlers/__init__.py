@@ -3,6 +3,7 @@ from .start import start_handler, start_callback_handler
 from .menu import menu_handlers
 from .instagram import instagram_handlers
 from .victories import victories_handlers
+from .free_configs import free_configs_handlers
 from .announcements import announcements_handlers
 from .petitions import petitions_handlers
 from .solidarity import solidarity_handlers
@@ -19,6 +20,7 @@ __all__ = [
     'menu_handlers',
     'instagram_handlers',
     'victories_handlers',
+    'free_configs_handlers',
     'announcements_handlers',
     'petitions_handlers',
     'solidarity_handlers',
