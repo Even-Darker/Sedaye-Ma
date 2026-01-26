@@ -803,7 +803,7 @@ async def receive_config_description(update: Update, context: ContextTypes.DEFAU
         f"{desc_text}"
         "کانفیگ با موفقیت به لیست اضافه شد\\.",
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(user_id))
+        reply_markup=Keyboards.admin_menu(is_super_admin=await is_super_admin(user_id))
     )
 
     return ConversationHandler.END
@@ -825,10 +825,14 @@ async def manage_configs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         configs = result.scalars().all()
 
         if not configs:
+            keyboard = [
+                [InlineKeyboardButton("➕ افزودن کانفیگ", callback_data=CallbackData.ADMIN_ADD_CONFIG)],
+                [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_PANEL)]
+            ]
             await query.edit_message_text(
-                "📋 *مدیریت کانفیگ‌ها*\n\nکانفیگی وجود ندارد\\.",
+                "📋 *مدیریت کانفیگ‌ها*\n\nلیست کانفیگ‌ها خالی است\\.",
                 parse_mode="MarkdownV2",
-                reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(update.effective_user.id))
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             return
 
