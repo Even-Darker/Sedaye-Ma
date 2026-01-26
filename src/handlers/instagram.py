@@ -303,6 +303,7 @@ async def show_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message,
                 parse_mode="MarkdownV2",
                 reply_markup=Keyboards.target_actions(target.id, target.ig_handle)
+            )
         else:
             await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
 
@@ -548,6 +549,6 @@ instagram_handlers = [
     CallbackQueryHandler(show_targets_page, pattern=r"^targets:page:\d+$"),
     CallbackQueryHandler(view_target, pattern=r"^target:view:\d+$"),
     CallbackQueryHandler(show_template, pattern=r"^target:template:\d+$"),
-    CallbackQueryHandler(i_reported, pattern=r"^target:reported:\d+$"),
+    CallbackQueryHandler(i_reported_handler, pattern=r"^target:reported:\d+$"),
     concern_conversation,
 ]
