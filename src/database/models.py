@@ -274,7 +274,7 @@ class NotificationPreference(Base):
     announcements_urgent = Column(Boolean, default=True)
     announcements_news = Column(Boolean, default=True)
     victories = Column(Boolean, default=True)
-    petitions = Column(Boolean, default=False)
+    petitions = Column(Boolean, default=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

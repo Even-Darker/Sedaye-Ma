@@ -186,9 +186,9 @@ class Formatters:
     def format_new_petition_announcement(petition) -> str:
         """Format a new petition announcement."""
         return f"""
-📢 *A new petition is added\\!*
+📢 *پتیشن جدیدی اضافه شد\\!*
 
 [{Formatters.escape_markdown(petition.title)}]({petition.url})
 
-Explanation: {Formatters.escape_markdown(petition.description)}
+📝 توضیحات: {Formatters.escape_markdown(petition.description)}
 """

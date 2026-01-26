@@ -106,7 +106,10 @@ class NotificationService:
                         parse_mode="MarkdownV2"
                     )
                     sent_count += 1
-                except Exception:
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Failed to send petition notification to {pref.chat_id}: {e}")
                     pass
             
             return sent_count
