@@ -67,6 +67,7 @@ class Admin(Base):
     # Relationships
     targets_added = relationship("InstagramTarget", back_populates="added_by")
     announcements = relationship("Announcement", back_populates="created_by")
+    free_configs = relationship("FreeConfig", back_populates="created_by")
     
     def __repr__(self):
         return f"<Admin(id={self.id}, role={self.role.value})>"
@@ -209,6 +210,30 @@ class Petition(Base):
             return None
         delta = self.deadline - datetime.utcnow()
         return max(0, delta.days)
+
+
+# ═══════════════════════════════════════════════════════════════
+# FREE CONFIG MODEL
+# ═══════════════════════════════════════════════════════════════
+
+class FreeConfig(Base):
+    """Free VPN configs shared by admins."""
+    __tablename__ = "free_configs"
+
+    id = Column(Integer, primary_key=True)
+    config_uri = Column(Text, nullable=False)  # v2ray URI
+    description = Column(String(255), nullable=True)  # Optional note (e.g., "US Server", "Fast")
+
+    is_active = Column(Boolean, default=True)
+    report_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_admin_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
+
+    # Relationship
+    created_by = relationship("Admin", back_populates="free_configs")
+
+    def __repr__(self):
+        return f"<FreeConfig(id={self.id}, description={self.description})>"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -361,3 +386,28 @@ class UserVictoryLog(Base):
     
     def __repr__(self):
         return f"<VictoryLog(target={self.target_id}, date={self.created_at})>"
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER CONFIG REPORT (HASHED - RATE LIMITED)
+# ═══════════════════════════════════════════════════════════════
+
+class UserConfigReport(Base):
+    """
+    Tracks which users have reported which free configs.
+    Prevents duplicate reporting (spam).
+    STORES HASHED IDS ONLY.
+    """
+    __tablename__ = "user_config_reports"
+
+    id = Column(Integer, primary_key=True)
+    config_id = Column(Integer, ForeignKey("free_configs.id"), nullable=False)
+    user_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('config_id', 'user_hash', name='uq_config_user_hash'),
+    )
+
+    def __repr__(self):
+        return f"<UserConfigReport(config={self.config_id})>"

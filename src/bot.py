@@ -6,6 +6,12 @@ A privacy-first, open-source bot for amplifying the voice of Iranian people.
 """
 import logging
 import asyncio
+import sys
+import os
+
+# Add parent directory to path to allow imports from config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from telegram import BotCommand
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
@@ -17,6 +23,7 @@ from src.handlers import (
     menu_handlers,
     instagram_handlers,
     victories_handlers,
+    free_configs_handlers,
     announcements_handlers,
     petitions_handlers,
     solidarity_handlers,
@@ -92,7 +99,11 @@ def main():
     # Victories
     for handler in victories_handlers:
         application.add_handler(handler)
-    
+
+    # Free Configs
+    for handler in free_configs_handlers:
+        application.add_handler(handler)
+
     # Announcements
     for handler in announcements_handlers:
         application.add_handler(handler)
