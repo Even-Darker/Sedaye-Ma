@@ -19,7 +19,21 @@ from src.handlers import (
 
 async def handle_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle text messages from persistent menu."""
+    import time
+    
     text = update.message.text
+    current_time = time.time()
+    
+    # Debounce check: Ignore identical messages within 2 seconds
+    last_text = context.user_data.get('last_msg_text')
+    last_time = context.user_data.get('last_msg_time', 0)
+    
+    if text == last_text and (current_time - last_time) < 2.0:
+        return
+
+    # Update cache
+    context.user_data['last_msg_text'] = text
+    context.user_data['last_msg_time'] = current_time
     
     if text == Messages.MENU_TARGETS or "ریپورت ساندیسی" in text:
         await instagram.show_report_sandisi_menu(update, context)
