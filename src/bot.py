@@ -7,7 +7,7 @@ A privacy-first, open-source bot for amplifying the voice of Iranian people.
 import logging
 import asyncio
 from telegram import BotCommand
-from telegram.ext import Application
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
 from config import settings
 from src.database import init_db
@@ -122,6 +122,14 @@ def main():
     for handler in suggest_handlers:
         application.add_handler(handler)
     
+    # Register Admin Petitions Handlers
+    from src.handlers.admin_petitions import manage_petitions, add_petition_conv, delete_petition_command
+    application.add_handler(add_petition_conv)
+    application.add_handler(CallbackQueryHandler(manage_petitions, pattern=r"^admin:petitions:page:\d+$"))
+    application.add_handler(CallbackQueryHandler(manage_petitions, pattern=r"^admin:petitions$")) # Alias for first page
+    application.add_handler(CallbackQueryHandler(manage_petitions, pattern=r"^admin:petitions$")) # Alias for first page
+    application.add_handler(MessageHandler(filters.Regex(r"^/delete_petition_\d+$"), delete_petition_command))
+
     # Admin handlers (must be last to not interfere with conversations)
     for handler in admin_handlers:
         application.add_handler(handler)

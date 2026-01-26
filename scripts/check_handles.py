@@ -15,8 +15,8 @@ async def check_handles():
     print(f"DEBUG: Using database URL: {settings.database_url}")
     
     handles_to_check = [
-        "amiir_khanlari11",
-        "amirfrff26t3dfwya11",
+        "john_doe",
+        "johnfrff26t3dfwya11",
         "sashah222"
     ]
     
