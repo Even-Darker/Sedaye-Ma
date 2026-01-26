@@ -742,7 +742,8 @@ async def start_add_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.edit_message_text(
         "➕ *افزودن کانفیگ رایگان*\n\nلطفاً URI کانفیگ v2ray را وارد کنید:",
-        parse_mode="MarkdownV2"
+        parse_mode="MarkdownV2",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(Messages.CANCEL_ACTION, callback_data=CallbackData.BACK_MAIN)]])
     )
 
     return ADDING_CONFIG_URI
@@ -762,7 +763,8 @@ async def receive_config_uri(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "\\- trojan://\n"
             "\\- ss://\n\n"
             "لطفاً دوباره امتحان کنید:",
-            parse_mode="MarkdownV2"
+            parse_mode="MarkdownV2",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(Messages.CANCEL_ACTION, callback_data=CallbackData.BACK_MAIN)]])
         )
         return ADDING_CONFIG_URI
 
@@ -772,7 +774,8 @@ async def receive_config_uri(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "✅ *URI دریافت شد*\n\n"
         "حالا یک توضیح اختیاری وارد کنید \\(مثلاً \"سرور آمریکا\" یا \"سریع\"\\)\n\n"
         "یا /skip را بزنید تا بدون توضیح ذخیره شود:",
-        parse_mode="MarkdownV2"
+        parse_mode="MarkdownV2",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(Messages.CANCEL_ACTION, callback_data=CallbackData.BACK_MAIN)]])
     )
 
     return ADDING_CONFIG_DESC
