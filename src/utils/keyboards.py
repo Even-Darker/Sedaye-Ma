@@ -11,6 +11,7 @@ class CallbackData:
     # Main menu
     MENU_TARGETS = "menu:targets"
     MENU_VICTORIES = "menu:victories"
+    MENU_FREE_CONFIGS = "menu:free_configs"
     MENU_STATS = "menu:stats"
     MENU_ANNOUNCEMENTS = "menu:announcements"
     MENU_PETITIONS = "menu:petitions"
@@ -88,12 +89,16 @@ class CallbackData:
     # Admin
     ADMIN_ADD_TARGET = "admin:add_target"
     ADMIN_MANAGE_TARGETS = "admin:manage_targets"
+    ADMIN_ADD_CONFIG = "admin:add_config"
+    ADMIN_MANAGE_CONFIGS = "admin:manage_configs"
+    ADMIN_DELETE_CONFIG = "admin:delete_config:{id}"
     ADMIN_ANNOUNCEMENTS = "admin:announcements"
     ADMIN_PETITIONS = "admin:petitions"
     ADMIN_SOLIDARITY = "admin:solidarity"
     ADMIN_STATS = "admin:stats"
     ADMIN_MANAGE_ADMINS = "admin:manage_admins"
     ADMIN_PENDING_TARGETS = "admin:pending_targets"
+    ADMIN_PANEL = "admin:panel"
     
     ADMIN_TARGET_EDIT = "admin:target:edit:{id}"
     ADMIN_TARGET_REMOVE = "admin:target:remove:{id}"
@@ -116,6 +121,11 @@ class CallbackData:
     ADMIN_REPORTS_MESSAGES = "admin:reports:messages"
     ADMIN_VIEW_MESSAGE = "admin:msg:view:{id}"
 
+    # Configs
+    CONFIGS_PAGE = "configs:page:{page}"
+    CONFIG_REPORT = "config:report:{id}"
+    CONFIG_COPY = "config:copy:{id}"
+
 
 
 class Keyboards:
@@ -133,6 +143,9 @@ class Keyboards:
         """Main menu keyboard."""
         buttons = [
             [InlineKeyboardButton(Messages.MENU_TARGETS, callback_data=CallbackData.MENU_TARGETS)],
+            [InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)],
+            [InlineKeyboardButton(Messages.MENU_FREE_CONFIGS, callback_data=CallbackData.MENU_FREE_CONFIGS)],
+            [InlineKeyboardButton(Messages.MENU_STATS, callback_data=CallbackData.MENU_STATS)],
             [InlineKeyboardButton(Messages.MENU_ANNOUNCEMENTS, callback_data=CallbackData.MENU_ANNOUNCEMENTS)],
             [InlineKeyboardButton(Messages.MENU_PETITIONS, callback_data=CallbackData.MENU_PETITIONS)],
             [InlineKeyboardButton(Messages.MENU_SOLIDARITY, callback_data=CallbackData.MENU_SOLIDARITY)],
@@ -151,7 +164,7 @@ class Keyboards:
             [KeyboardButton(Messages.MENU_TARGETS)],  # Row 1: Report Sandisi (Main)
             [KeyboardButton(Messages.MENU_ANNOUNCEMENTS), KeyboardButton(Messages.MENU_PETITIONS)],
             [KeyboardButton(Messages.MENU_SOLIDARITY), KeyboardButton(Messages.MENU_RESOURCES)],
-            [KeyboardButton(Messages.MENU_SETTINGS)]
+            [KeyboardButton(Messages.MENU_FREE_CONFIGS), KeyboardButton(Messages.MENU_SETTINGS)]
         ]
         
         if is_admin:
@@ -292,6 +305,28 @@ class Keyboards:
         buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_FILTER)])
         
         return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def free_configs_pagination(config_id: int, current_page: int, total_pages: int) -> InlineKeyboardMarkup:
+        """Pagination for free configs with actions."""
+        # Action Buttons
+        actions = []
+        actions.append(InlineKeyboardButton("📋 کپی کانفیگ", callback_data=CallbackData.CONFIG_COPY.format(id=config_id)))
+        actions.append(InlineKeyboardButton("🚨 گزارش خرابی", callback_data=CallbackData.CONFIG_REPORT.format(id=config_id)))
+        
+        # Navigation Buttons
+        nav_buttons = []
+        if current_page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️ قبلی", callback_data=CallbackData.CONFIGS_PAGE.format(page=current_page-1)))
+        
+        if current_page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("بعدی ▶️", callback_data=CallbackData.CONFIGS_PAGE.format(page=current_page+1)))
+
+        return InlineKeyboardMarkup([
+            actions,
+            nav_buttons,
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
+        ])
     
     @staticmethod
     def victories_actions() -> InlineKeyboardMarkup:
@@ -459,6 +494,25 @@ class Keyboards:
                 )
             ])
         buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_REPORTS)])
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod    
+    def admin_menu(is_super_admin: bool = False, pending_count: int = 0) -> InlineKeyboardMarkup:
+        """Admin panel menu."""
+        pending_badge = f" ({pending_count})" if pending_count > 0 else ""
+        buttons = [
+            [InlineKeyboardButton(f"✅ تأیید صفحات پیشنهادی{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)],
+            [InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)],
+            [InlineKeyboardButton("📡 مدیریت کانفیگ‌ها", callback_data=CallbackData.ADMIN_MANAGE_CONFIGS)],
+            [InlineKeyboardButton("➕ افزودن کانفیگ", callback_data=CallbackData.ADMIN_ADD_CONFIG)],
+            [InlineKeyboardButton(Messages.ADMIN_ANNOUNCEMENTS, callback_data=CallbackData.ADMIN_ANNOUNCEMENTS)],
+            [InlineKeyboardButton(Messages.ADMIN_PETITIONS, callback_data=CallbackData.ADMIN_PETITIONS)],
+            [InlineKeyboardButton(Messages.ADMIN_SOLIDARITY, callback_data=CallbackData.ADMIN_SOLIDARITY)],
+            [InlineKeyboardButton(Messages.ADMIN_STATS, callback_data=CallbackData.ADMIN_STATS)],
+        ]
+        if is_super_admin:
+            buttons.append([InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data=CallbackData.ADMIN_MANAGE_ADMINS)])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)])
         return InlineKeyboardMarkup(buttons)
         
     ADMIN_MESSAGE_PROCESS = "admin:msg:process:{action}:{id}"

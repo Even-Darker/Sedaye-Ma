@@ -18,7 +18,7 @@ from config import Messages, settings
 from src.utils import Keyboards, Formatters
 from src.utils.keyboards import CallbackData
 from src.utils.decorators import admin_required, super_admin_required
-from src.database import get_db, Admin, InstagramTarget, Victory, Announcement, SolidarityMessage
+from src.database import get_db, Admin, InstagramTarget, Victory, Announcement, SolidarityMessage, FreeConfig
 from src.database.models import TargetStatus, AdminRole
 
 
@@ -28,6 +28,8 @@ ADDING_TARGET_REASONS = 2
 ADDING_ANNOUNCEMENT_TITLE = 3
 ADDING_ANNOUNCEMENT_CONTENT = 4
 ADDING_ADMIN_ID = 5
+ADDING_CONFIG_URI = 6
+ADDING_CONFIG_DESC = 7
 
 
 async def is_super_admin(user_id: int) -> bool:
@@ -675,13 +677,13 @@ async def cancel_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
     user_id = update.effective_user.id
-    
+
     await query.edit_message_text(
         Messages.ADMIN_HEADER,
         parse_mode="MarkdownV2",
         reply_markup=Keyboards.admin_menu(is_super_admin=await is_super_admin(user_id))
     )
-    
+
     return ConversationHandler.END
 
     return ConversationHandler.END
@@ -728,6 +730,159 @@ async def handle_menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYP
     return ConversationHandler.END
 
 
+# ═══════════════════════════════════════════════════════════════
+# FREE CONFIG MANAGEMENT
+# ═══════════════════════════════════════════════════════════════
+
+@admin_required
+async def start_add_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start adding a new free config."""
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "➕ *افزودن کانفیگ رایگان*\n\nلطفاً URI کانفیگ v2ray را وارد کنید:",
+        parse_mode="MarkdownV2"
+    )
+
+    return ADDING_CONFIG_URI
+
+
+async def receive_config_uri(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive config URI."""
+    config_uri = update.message.text.strip()
+
+    # Basic validation - check if it starts with common v2ray schemes
+    if not any(config_uri.startswith(scheme) for scheme in ["vmess://", "vless://", "trojan://", "ss://"]):
+        await update.message.reply_text(
+            "⚠️ *فرمت URI نامعتبر است*\n\n"
+            "URI باید با یکی از این‌ها شروع شود:\n"
+            "\\- vmess://\n"
+            "\\- vless://\n"
+            "\\- trojan://\n"
+            "\\- ss://\n\n"
+            "لطفاً دوباره امتحان کنید:",
+            parse_mode="MarkdownV2"
+        )
+        return ADDING_CONFIG_URI
+
+    context.user_data["new_config_uri"] = config_uri
+
+    await update.message.reply_text(
+        "✅ *URI دریافت شد*\n\n"
+        "حالا یک توضیح اختیاری وارد کنید \\(مثلاً \"سرور آمریکا\" یا \"سریع\"\\)\n\n"
+        "یا /skip را بزنید تا بدون توضیح ذخیره شود:",
+        parse_mode="MarkdownV2"
+    )
+
+    return ADDING_CONFIG_DESC
+
+
+async def receive_config_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive config description and save."""
+    description = None
+    if update.message.text.strip() != "/skip":
+        description = update.message.text.strip()
+
+    config_uri = context.user_data.get("new_config_uri")
+    user_id = update.effective_user.id
+
+    async with get_db() as session:
+        config = FreeConfig(
+            config_uri=config_uri,
+            description=description,
+            is_active=True
+        )
+        session.add(config)
+        await session.commit()
+
+    desc_text = f"📝 توضیح: {Formatters.escape_markdown(description)}\n" if description else ""
+
+    await update.message.reply_text(
+        f"✅ *کانفیگ اضافه شد\\!*\n\n"
+        f"{desc_text}"
+        "کانفیگ با موفقیت به لیست اضافه شد\\.",
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(user_id))
+    )
+
+    return ConversationHandler.END
+
+
+@admin_required
+async def manage_configs(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show config management panel."""
+    query = update.callback_query
+    await query.answer()
+
+    async with get_db() as session:
+        result = await session.execute(
+            select(FreeConfig)
+            .where(FreeConfig.is_active == True)
+            .order_by(FreeConfig.report_count.desc(), FreeConfig.created_at.desc())
+            .limit(15)
+        )
+        configs = result.scalars().all()
+
+        if not configs:
+            await query.edit_message_text(
+                "📋 *مدیریت کانفیگ‌ها*\n\nکانفیگی وجود ندارد\\.",
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.admin_menu(is_super_admin=is_super_admin(update.effective_user.id))
+            )
+            return
+
+        message = "📋 *مدیریت کانفیگ‌ها*\n\n"
+        keyboard = []
+
+        for index, config in enumerate(configs, 1):
+            desc = f" - {config.description}" if config.description else ""
+            report_badge = f" 🚨 {config.report_count}" if config.report_count > 0 else ""
+            
+            # Show FULL URI in code block for easy copying
+            
+            message += f"*{index}\.* {Formatters.escape_markdown(desc)}{report_badge}\n"
+            message += f"`{Formatters.escape_markdown(config.config_uri)}`\n\n"
+            
+            keyboard.append([InlineKeyboardButton(
+                f"🗑 حذف شماره #{index}",
+                callback_data=CallbackData.ADMIN_DELETE_CONFIG.format(id=config.id)
+            )])
+
+        keyboard.append([InlineKeyboardButton("🔙 بازگشت", callback_data=CallbackData.ADMIN_PANEL)])
+
+        await query.edit_message_text(
+            message,
+            parse_mode="MarkdownV2",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+
+@admin_required
+async def delete_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Delete a config."""
+    query = update.callback_query
+    await query.answer()
+
+    config_id = int(query.data.split(":")[-1])
+
+    async with get_db() as session:
+        result = await session.execute(
+            select(FreeConfig).where(FreeConfig.id == config_id)
+        )
+        config = result.scalar_one_or_none()
+
+        if config:
+            config.is_active = False
+            await session.commit()
+            await query.answer("✅ کانفیگ حذف شد", show_alert=True)
+        else:
+            await query.answer("❌ کانفیگ پیدا نشد", show_alert=True)
+
+    # Refresh the manage panel
+    await manage_configs(update, context)
+
+
 # Add target conversation handler
 add_target_conversation = ConversationHandler(
     entry_points=[
@@ -762,6 +917,27 @@ add_admin_conversation = ConversationHandler(
     fallbacks=[
         CallbackQueryHandler(cancel_admin_action, pattern=f"^{CallbackData.BACK_MAIN}$"),
         MessageHandler(filters.Regex(MENU_PATTERN), handle_menu_fallback),
+    ],
+    per_message=False,
+)
+
+
+# Add config conversation handler
+add_config_conversation = ConversationHandler(
+    entry_points=[
+        CallbackQueryHandler(start_add_config, pattern=f"^{CallbackData.ADMIN_ADD_CONFIG}$")
+    ],
+    states={
+        ADDING_CONFIG_URI: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_config_uri),
+        ],
+        ADDING_CONFIG_DESC: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_config_description),
+            CommandHandler("skip", receive_config_description),
+        ],
+    },
+    fallbacks=[
+        CallbackQueryHandler(cancel_admin_action, pattern=f"^{CallbackData.BACK_MAIN}$"),
     ],
     per_message=False,
 )
@@ -1142,6 +1318,55 @@ async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+@admin_required
+async def admin_process_closed_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Process closed report confirmation (Yes/No)."""
+    query = update.callback_query
+    action = query.data.split(":")[2] # 'yes' or 'no'
+    target_id = int(query.data.split(":")[-1])
+    
+    if action == "no":
+        await query.answer("❌ گزارش رد شد (تغییری ایجاد نشد)")
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.edit_message_text(f"{query.message.text}\n\n❌ توسط ادمین رد شد.")
+        return
+
+    # Action YES
+    async with get_db() as session:
+        result = await session.execute(
+            select(InstagramTarget).where(InstagramTarget.id == target_id)
+        )
+        target = result.scalar_one_or_none()
+        
+        if not target:
+            await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
+            await query.edit_message_text("❌ هدف پیدا نشد")
+            return
+            
+        if target.status == TargetStatus.REMOVED:
+            await query.answer("⚠️ قبلاً ثبت شده", show_alert=True)
+            await query.edit_message_text(f"{query.message.text}\n\n✅ قبلاً ثبت شده بود.")
+            return
+
+        # Update status
+        target.status = TargetStatus.REMOVED
+        target.removed_at = datetime.utcnow()
+        
+        victory = Victory(
+            target_id=target.id,
+            victory_date=datetime.utcnow(),
+            final_report_count=target.anonymous_report_count
+        )
+        session.add(victory)
+        await session.commit()
+        
+        await query.answer("🏆 پیروزی ثبت شد!", show_alert=True)
+        await query.edit_message_text(
+            f"{query.message.text}\n\n🏆 *تایید شد: پیروزی ثبت شد!*",
+            parse_mode="MarkdownV2"
+        )
+
+
 
 # ═══════════════════════════════════════════════════════════════
 # FINAL HANDLER EXPORT
@@ -1184,4 +1409,13 @@ admin_handlers = [
     CallbackQueryHandler(moderate_solidarity, pattern=f"^{CallbackData.ADMIN_SOLIDARITY}$"),
     CallbackQueryHandler(approve_message, pattern=r"^admin:approve_msg:\d+$"),
     CallbackQueryHandler(reject_message, pattern=r"^admin:reject_msg:\d+$"),
+
+   
+    CallbackQueryHandler(show_pending_targets, pattern=f"^{CallbackData.ADMIN_PENDING_TARGETS}$"),
+    # Configs Management
+    CallbackQueryHandler(manage_configs, pattern=f"^{CallbackData.ADMIN_MANAGE_CONFIGS}$"),
+    CallbackQueryHandler(delete_config, pattern=r"^admin:delete_config:\d+$"),
+
+    # Quick Action Confirmation
+    CallbackQueryHandler(admin_process_closed_report, pattern=r"^admin:closed:(yes|no):\d+$"),
 ]
