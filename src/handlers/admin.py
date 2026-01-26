@@ -454,7 +454,7 @@ async def manage_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     async with get_db() as session:
         result = await session.execute(
-            select(Admin).order_by(Admin.created_at.desc())
+            select(Admin).where(Admin.role != AdminRole.SUPER_ADMIN).order_by(Admin.created_at.desc())
         )
         admins = result.scalars().all()
         
@@ -463,11 +463,12 @@ async def manage_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if admins:
             message += "_برای حذف ادمین، روی آن کلیک کنید:_\n\n"
             for admin in admins:
-                message += f"• {admin.telegram_id} \\({admin.role.value}\\)\n"
+                # Escape values to prevent Markdown errors
+                safe_id = Formatters.escape_markdown(str(admin.telegram_id))
+                safe_role = Formatters.escape_markdown(admin.role.value)
+                message += f"• {safe_id} \\({safe_role}\\)\n"
         else:
             message += "_هیچ ادمینی ثبت نشده است\\._\n"
-        
-        message += f"\n💡 _ادمین‌های اصلی \\(SUPER\\) قابل حذف نیستند\\._"
         
         await query.edit_message_text(
             message,
@@ -484,8 +485,8 @@ async def start_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(
         "➕ *افزودن ادمین جدید*\n\n"
-        "لطفاً نام کاربری \\(Username\\) کاربر را وارد کنید:\n"
-        "مثال: @username",
+        "لطفاً نام کاربری \\(Username\\) یا شناسه عددی \\(User ID\\) کاربر را وارد کنید:\n"
+        "مثال: @username یا 123456789",
         parse_mode="MarkdownV2"
     )
     
@@ -500,19 +501,33 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
     # Remove @ if present
     username = text[1:] if text.startswith("@") else text
     
-    # Validate Username
-    try:
-         # Need to handle async get_chat
-         chat = await context.bot.get_chat(username)
-         new_admin_id = chat.id
-    except Exception:
-        await update.message.reply_text(
-            "⚠️ *کاربر یافت نشد*\n\n"
-            "لطفاً مطمئن شوید نام کاربری صحیح است و کاربر ربات را استارت کرده است\\.\n"
-            "لطفاً دوباره امتحان کنید:",
-            parse_mode="MarkdownV2"
-        )
-        return ADDING_ADMIN_ID
+    new_admin_id = None
+    display_name = username
+    
+    # 1. Try as User ID (digits)
+    if username.isdigit():
+        new_admin_id = int(username)
+        display_name = str(new_admin_id)
+    
+    # 2. Try as Username (via API)
+    else:
+        try:
+             chat = await context.bot.get_chat(username)
+             new_admin_id = chat.id
+             display_name = chat.username or chat.first_name
+        except Exception:
+            await update.message.reply_text(
+                "⚠️ *کاربر یافت نشد*\n\n"
+                "ربات نتوانست نام کاربری را پیدا کند (احتمالاً کاربر هنوز ربات را استارت نکرده است)\\.\n\n"
+                "لطفاً **شناسه عددی (User ID)** کاربر را وارد کنید\\.\n"
+                "_(می‌توانید از ربات‌های userinfobot برای دریافت ID استفاده کنید)_",
+                parse_mode="MarkdownV2"
+            )
+            return ADDING_ADMIN_ID
+            
+    if not new_admin_id:
+         await update.message.reply_text("❌ خطای نامشخص", parse_mode="MarkdownV2")
+         return ADDING_ADMIN_ID
     
     # Check if it's themselves
     if new_admin_id == user_id:
@@ -544,7 +559,7 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
         
     await update.message.reply_text(
         f"✅ *ادمین جدید اضافه شد*\n\n"
-        f"کاربر: @{Formatters.escape_markdown(username)}\n"
+        f"کاربر: {Formatters.escape_markdown(str(display_name))}\n"
         f"شناسه: `{new_admin_id}`",
         parse_mode="MarkdownV2",
         reply_markup=Keyboards.admin_menu(is_super_admin=True) # Assuming adder is super
