@@ -12,6 +12,7 @@ from sqlalchemy import select
 from config import Messages, settings
 from src.utils import Keyboards, Formatters
 from src.utils.keyboards import CallbackData
+from src.utils.decorators import rate_limit
 from src.database import get_db, InstagramTarget, Admin
 from src.database.models import TargetStatus
 
@@ -84,6 +85,8 @@ async def start_suggest_target(update: Update, context: ContextTypes.DEFAULT_TYP
     return SUGGEST_HANDLE
 
 
+
+@rate_limit(limit=5, window=60, penalty_time=86400) # 5 suggestions per minute, else 24h ban
 async def receive_suggest_handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Receive the suggested handle(s) and validate."""
     from src.services.instagram import InstagramValidator, validate_instagram_handle
