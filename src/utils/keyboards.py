@@ -242,14 +242,14 @@ class Keyboards:
         ])
     
     @staticmethod
-    def targets_list(targets: list, page: int = 0, total_pages: int = 1) -> InlineKeyboardMarkup:
+    def targets_list(targets: list, page: int = 0, total_pages: int = 1, show_report_button: bool = True) -> InlineKeyboardMarkup:
         """List of targets with pagination."""
         buttons = []
         
         for target in targets:
             priority_emoji = "🔴" if target.priority <= 3 else "🟡" if target.priority <= 6 else "🟢"
             # Row 2: Quick Actions
-            buttons.append([
+            row = [
                 InlineKeyboardButton(
                     f"{priority_emoji} @{target.ig_handle}",
                     url=f"https://instagram.com/{target.ig_handle}"
@@ -257,12 +257,18 @@ class Keyboards:
                 InlineKeyboardButton(
                     "مشکل داره",   # "Concerns" 
                     callback_data=CallbackData.TARGET_REPORT_CLOSED.format(id=target.id)
-                ),
-                InlineKeyboardButton(
-                    Messages.I_REPORTED_BUTTON, 
-                    callback_data=CallbackData.TARGET_I_REPORTED.format(id=target.id)
-                ),
-            ])
+                )
+            ]
+            
+            if show_report_button:
+                row.append(
+                    InlineKeyboardButton(
+                        Messages.I_REPORTED_BUTTON, 
+                        callback_data=CallbackData.TARGET_I_REPORTED.format(id=target.id)
+                    )
+                )
+                
+            buttons.append(row)
             
             # Add spacer or separator logic if needed, but for now lists are enough.
             # (Note: Original View/More button is replaced by direct link + actions)
