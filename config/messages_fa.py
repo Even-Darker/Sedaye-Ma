@@ -314,6 +314,7 @@ This account engages in targeted harassment of individuals. The content includes
     
     ERROR_GENERIC = "⚠️ خطایی رخ داد\\. لطفاً دوباره تلاش کنید\\."
     ERROR_NOT_FOUND = "❌ یافت نشد\\."
+    CANCEL_ACTION = "❌ انصراف"
     
     LOADING = "⏳ در حال بارگذاری\\.\\.\\."
     
