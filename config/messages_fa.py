@@ -125,7 +125,7 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     REMOVE_REPORT_HEADER = "🏁 *گزارش موفقیت حذف صفحه*"
     REMOVE_REPORT_HANDLE_PROMPT = (
         "تبریک\\! 🎉\n\n"
-        "برای ثبت این موفقیت، لطفاً handle صفحه‌ حذف شده را وارد کنید \\(بدون @\\):"
+        "برای ثبت این موفقیت، لطفاً ID صفحه‌ حذف شده را وارد کنید \\(بدون @\\):"
     )
     REMOVE_REPORT_VERIFYING = "⏳ در حال بررسی وضعیت صفحه\\.\\.\\."
     REMOVE_REPORT_NOT_FOUND = (
@@ -263,7 +263,7 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     ADMIN_UNAUTHORIZED = "⛔ شما دسترسی ندارید\\."
     
     ADMIN_ADD_TARGET = "➕ افزودن صفحه"
-    ADMIN_MANAGE_TARGETS = "📋 مدیریت صفحات"
+    ADMIN_MANAGE_TARGETS = "🧃 مدیریت ساندیس ها"
     ADMIN_ANNOUNCEMENTS = "📢 اطلاعیه‌ها"
     ADMIN_PETITIONS = "✊ پتیشن‌ها"
     ADMIN_SOLIDARITY = "💬 تأیید پیام‌ها"

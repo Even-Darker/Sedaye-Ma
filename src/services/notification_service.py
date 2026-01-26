@@ -147,3 +147,54 @@ class NotificationService:
                 except Exception:
                     pass
             return sent_count
+
+    async def notify_admins_removal_request(self, target_id: int, handle: str, auto_confirmed: bool):
+        """
+        Notify all admins about a removal request (Submit Victory).
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        from src.database.models import Admin
+        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+        from src.utils.keyboards import CallbackData
+        
+        logger.info(f"Preparing removal notification for handle: {handle}, target_id: {target_id}")
+        
+        async with get_db() as session:
+            result = await session.execute(select(Admin.telegram_id))
+            admin_ids = result.scalars().all()
+            
+            logger.info(f"Found {len(admin_ids)} admins in database: {admin_ids}")
+            
+            admin_keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ تأیید حذف و ثبت پیروزی", callback_data=CallbackData.ADMIN_CONFIRM_REMOVAL.format(id=target_id))],
+                [InlineKeyboardButton("بررسی صفحه", url=f"https://instagram.com/{handle}")]
+            ])
+            
+            status_icon = "🟢" if auto_confirmed else "⚠️"
+            raw_status = "تایید خودکار (صفحه یافت نشد)" if auto_confirmed else "گزارش دستی (صفحه هنوز دیده می‌شود)"
+            status_text = Formatters.escape_markdown(raw_status)
+            
+            msg = (
+                f"🏆 *گزارش حذف صفحه*\n\n"
+                f"📍 Handle: [@{Formatters.escape_markdown(handle)}](https://instagram.com/{handle})\n"
+                f"وضعیت ربات: {status_text} {status_icon}\n\n"
+                "آیا حذف این صفحه را تأیید می‌کنید؟"
+            )
+            
+            sent_count = 0
+            for uid in admin_ids:
+                try:
+                    logger.info(f"Sending notification to admin {uid}...")
+                    await self.bot.send_message(
+                        chat_id=uid,
+                        text=msg,
+                        parse_mode="MarkdownV2",
+                        reply_markup=admin_keyboard
+                    )
+                    logger.info(f"SUCCESS: Sent to {uid}")
+                    sent_count += 1
+                except Exception as e:
+                    logger.error(f"FAILED to send to admin {uid}: {e}")
+            return sent_count

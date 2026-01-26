@@ -335,3 +335,27 @@ class UserConcernLog(Base):
     
     def __repr__(self):
         return f"<ConcernLog(target={self.target_id}, type={self.concern_type})>"
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER VICTORY LOG (HASHED - RATE LIMITED)
+# ═══════════════════════════════════════════════════════════════
+
+class UserVictoryLog(Base):
+    """
+    Tracks victory submissions to prevent spam.
+    Users can only submit a victory for a target once every 24 hours.
+    STORES HASHED IDS ONLY.
+    """
+    __tablename__ = "user_victory_logs"
+    
+    id = Column(Integer, primary_key=True)
+    target_id = Column(Integer, ForeignKey("instagram_targets.id"), nullable=False)
+    
+    # SHA256(user_id + salt)
+    user_hash = Column(String(64), nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<VictoryLog(target={self.target_id}, date={self.created_at})>"

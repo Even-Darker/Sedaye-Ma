@@ -102,7 +102,8 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"{Messages.TARGETS_HEADER}\n\n"
                 "✅ *گزارش‌های من*\n"
                 "لیست صفحاتی که شما قبلاً گزارش داده‌اید\\.\n"
-                "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\."
+                "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\.\n\n"
+                "_📝 دکمه «گزارش»: اگر فکر می‌کنید صفحه بسته شده است یا مشکل دیگری هست حتما به ما گزارش دهید\\!_"
             )
             show_report_btn = False
             
@@ -186,7 +187,7 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if filter_type == CallbackData.FILTER_NEW:
             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
             stmt = stmt.where(InstagramTarget.id.not_in(subq))
-            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \\(گزارش نشده توسط شما\\)*"
+            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \\(گزارش نشده توسط شما\\)*\n\n_📝 دکمه «گزارش»: اگر فکر می‌کنید صفحه بسته شده است یا مشکل دیگری هست حتما به ما گزارش دهید\\!_"
             
         elif filter_type == CallbackData.FILTER_REPORTED:
             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
@@ -196,7 +197,8 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"{Messages.TARGETS_HEADER}\n\n"
                 "✅ *گزارش‌های من*\n"
                 "لیست صفحاتی که شما قبلاً گزارش داده‌اید\\.\n"
-                "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\."
+                "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\.\n\n"
+                "_📝 دکمه «گزارش»: اگر فکر می‌کنید صفحه بسته شده است یا مشکل دیگری هست حتما به ما گزارش دهید\\!_"
             )
             show_report_btn = False
         else:
@@ -540,6 +542,7 @@ concern_conversation = ConversationHandler(
 
 # Export handlers
 instagram_handlers = [
+    concern_conversation, # Must be first to handle 'Back' properly
     CallbackQueryHandler(show_report_sandisi_menu, pattern=f"^{CallbackData.MENU_TARGETS}$"),
     CallbackQueryHandler(show_filter_menu, pattern=f"^{CallbackData.FILTER_MENU}$"),
     CallbackQueryHandler(show_targets_list, pattern=f"^{CallbackData.TARGETS_LIST}$"),
@@ -550,5 +553,4 @@ instagram_handlers = [
     CallbackQueryHandler(view_target, pattern=r"^target:view:\d+$"),
     CallbackQueryHandler(show_template, pattern=r"^target:template:\d+$"),
     CallbackQueryHandler(i_reported_handler, pattern=r"^target:reported:\d+$"),
-    concern_conversation,
 ]

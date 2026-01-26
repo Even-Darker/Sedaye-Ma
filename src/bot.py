@@ -37,6 +37,12 @@ logging.basicConfig(
 )
 # Suppress httpx logs (telegram polling)
 logging.getLogger("httpx").setLevel(logging.WARNING)
+# Force DEBUG for our code
+logging.getLogger("src").setLevel(logging.DEBUG)
+
+# Ensure environment is loaded (redundant safety)
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 
 logger = logging.getLogger(__name__)
 
