@@ -59,7 +59,6 @@ async def show_victories(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stats_block = Messages.VICTORY_STATS_BLOCK.format(
             Formatters.escape_markdown(str(active_targets)),
             Formatters.escape_markdown(str(removed_targets)),
-            Formatters.escape_markdown(Formatters.format_number(followers_silenced)),
             Formatters.escape_markdown(Formatters.format_number(total_reports))
         )
 
