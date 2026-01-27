@@ -1,14 +1,14 @@
-# 🦅 Sedaye Ma (Our Voice)
+# 🦁☀️ Sedaye Ma (Our Voice)
 
 > **Coordinating collective action against online violations.**
 
-[🇺🇸 English](README.md) | [🇮🇷 فارسی](README_fa.md)
+[English](README.md) | [فارسی](README_fa.md)
 
 Sedaye Ma is a Telegram bot designed to help communities organize and report violations on social media platforms (focusing on Instagram). It facilitates the reporting of harmful content such as violence, misinformation, propaganda, and harassment.
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![License](https://img.shields.io/badge/license-AGPLv3-blue.svg)
 
 ## ✨ Features
 
@@ -17,7 +17,7 @@ Sedaye Ma is a Telegram bot designed to help communities organize and report vio
 - **📝 Petitions**: Sign and track progress of community petitions.
 - **🏆 Victories**: Section to celebrate successful removals and community impact.
 - **💬 Solidarity Wall**: Anonymous messages of support from the community.
-- **📡 Free Configs**: Access to free tools for internet freedom.
+- **📡 Free Configs**: Access to free tested configs for internet freedom.
 - **🛡️ Privacy Focused**: Built with user privacy in mind.
 - **Admin Panel**: Complete management system within Telegram.
 
@@ -109,4 +109,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📝 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the GNU Affero General Public License v3.0. See `LICENSE` for more information.
