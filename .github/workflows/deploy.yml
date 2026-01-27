@@ -13,7 +13,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: main
+    environment: dev
     permissions:
       contents: read
       packages: write
@@ -51,30 +51,37 @@ jobs:
 
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v0.1.10
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          SUPER_ADMIN_IDS: ${{ secrets.SUPER_ADMIN_IDS }}
+          GITHUB_ACTOR: ${{ github.actor }}
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
-          # key: ${{ secrets.KEY }} # Optional: Use key if you switch to SSH keys later
+          envs: GITHUB_TOKEN,TELEGRAM_BOT_TOKEN,SUPER_ADMIN_IDS,REGISTRY,IMAGE_NAME,CONTAINER_NAME,GITHUB_ACTOR
+          command_timeout: 30m
           script: |
             # Login to GHCR on server
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
             
             # Pull new image
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker pull $REGISTRY/$IMAGE_NAME:latest
             
             # Stop old container
-            docker stop ${{ env.CONTAINER_NAME }} || true
-            docker rm ${{ env.CONTAINER_NAME }} || true
+            docker stop $CONTAINER_NAME || true
+            docker rm $CONTAINER_NAME || true
             
             # Run new container
             docker run -d \
-              --name ${{ env.CONTAINER_NAME }} \
+              --name $CONTAINER_NAME \
               --restart unless-stopped \
               -v $HOME/sedaye-ma-data:/app/data \
-              -e TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
-              -e SUPER_ADMIN_IDS="${{ secrets.SUPER_ADMIN_IDS }}" \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+              -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
+              -e SUPER_ADMIN_IDS="$SUPER_ADMIN_IDS" \
+              -e ENVIRONMENT="production" \
+              $REGISTRY/$IMAGE_NAME:latest
             
             # Cleanup unused images
             docker image prune -f
