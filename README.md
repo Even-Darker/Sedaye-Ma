@@ -26,6 +26,7 @@
 Sedaye Ma is a Telegram bot designed to help communities organize and report violations on social media platforms (focusing on Instagram). It facilitates the reporting of harmful content such as violence, misinformation, propaganda, and harassment.
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![License](https://img.shields.io/badge/license-AGPLv3-blue.svg)
 
