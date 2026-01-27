@@ -78,6 +78,8 @@ def main():
         return
     
     logger.info("🔥 Starting Sedaye Ma Bot...")
+    from src.version import __version__
+    logger.info(f"Version: {__version__}")
     logger.info(f"Environment: {settings.environment}")
     
     # Build application
