@@ -4,7 +4,13 @@
 
 [English](README.md) | [فارسی](README_fa.md)
 
-**🤖 Official Bot:** [t.me/Sedaye_ma_bot](https://t.me/Sedaye_ma_bot)
+<div align="center">
+
+# 🦁 [Start the Bot](https://t.me/Sedaye_ma_bot) 🔊
+### Join the movement now! 👇
+**[t.me/Sedaye_ma_bot](https://t.me/Sedaye_ma_bot)**
+
+</div>
 
 Sedaye Ma is a Telegram bot designed to help communities organize and report violations on social media platforms (focusing on Instagram). It facilitates the reporting of harmful content such as violence, misinformation, propaganda, and harassment.
 
