@@ -169,8 +169,8 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     # EMAIL CAMPAIGNS
     # ═══════════════════════════════════════════════════════════════
     
-    MENU_EMAILS = "📧 کمپین‌های ایمیلی"
-    EMAILS_HEADER = "📧 *کمپین‌های ایمیلی*"
+    MENU_EMAILS = "✉️ کمپین‌های ایمیلی"
+    EMAILS_HEADER = "📣 *کمپین‌های ایمیلی*"
     EMAILS_SUBTITLE = "_ارسال ایمیل گروهی به سازمان‌ها و مقامات_"
     EMAILS_EMPTY = "در حال حاضر کمپین فعالی وجود ندارد\\."
     EMAIL_SEND_BTN = "📤 ارسال ایمیل"

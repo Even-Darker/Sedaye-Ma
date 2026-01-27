@@ -47,10 +47,10 @@ def build_single_campaign_message(campaign, page: int, total_pages: int, complet
     if done_badge:
         lines.append(f"_{done_badge}_")
         
-    lines.append(f"\n*{title}*\n")
-    lines.append(f"{desc}\n")
+    lines.append(f"\n*کمپین: \n{title}*\n")
+    lines.append(f"توضیحات: \n{desc}\n")
     lines.append(f"{stats_line}")
-    lines.append(f"\n📧 `{email_target}`") # Always show email for verification/copying
+
     
     # Buttons
     buttons = []
@@ -139,8 +139,9 @@ async def list_email_campaigns(update: Update, context: ContextTypes.DEFAULT_TYP
         # Get page item
         stmt = (
             select(EmailCampaign)
+            .outerjoin(UserEmailAction, (EmailCampaign.id == UserEmailAction.campaign_id) & (UserEmailAction.user_hash == user_hash))
             .where(EmailCampaign.is_active == True)
-            .order_by(EmailCampaign.created_at.desc())
+            .order_by(UserEmailAction.id.isnot(None), EmailCampaign.created_at.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -184,8 +185,9 @@ async def list_email_campaigns_text(update: Update, context: ContextTypes.DEFAUL
         
         stmt = (
             select(EmailCampaign)
+            .outerjoin(UserEmailAction, (EmailCampaign.id == UserEmailAction.campaign_id) & (UserEmailAction.user_hash == user_hash))
             .where(EmailCampaign.is_active == True)
-            .order_by(EmailCampaign.created_at.desc())
+            .order_by(UserEmailAction.id.isnot(None), EmailCampaign.created_at.desc())
             .limit(limit)
         )
         campaigns = (await session.execute(stmt)).scalars().all()
@@ -265,8 +267,9 @@ async def track_email_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             stmt = (
                 select(EmailCampaign)
+                .outerjoin(UserEmailAction, (EmailCampaign.id == UserEmailAction.campaign_id) & (UserEmailAction.user_hash == user_hash))
                 .where(EmailCampaign.is_active == True)
-                .order_by(EmailCampaign.created_at.desc())
+                .order_by(UserEmailAction.id.isnot(None), EmailCampaign.created_at.desc())
                 .offset(offset)
                 .limit(limit)
             )
