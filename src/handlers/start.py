@@ -24,42 +24,46 @@ async def is_user_admin(user_id: int) -> bool:
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command - show welcome message."""
+    user_id = update.effective_user.id
+    is_admin = await is_user_admin(user_id)
+    
+    # Ensure user is registered for notifications
+    from src.database import NotificationPreference
+    async with get_db() as session:
+        result = await session.execute(
+            select(NotificationPreference).where(NotificationPreference.chat_id == user_id)
+        )
+        if not result.scalar_one_or_none():
+            prefs = NotificationPreference(chat_id=user_id)
+            session.add(prefs)
+            await session.commit()
+    
     await update.message.reply_text(
         Messages.WELCOME,
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.start()
+        reply_markup=Keyboards.main_menu_persistent(is_admin=is_admin)
     )
 
 
-async def home_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /home command - show main menu."""
-    user_id = update.effective_user.id
-    is_admin = await is_user_admin(user_id)
-    
-    await update.message.reply_text(
-        Messages.MAIN_MENU_HEADER,
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.main_menu(is_admin=is_admin)
-    )
+
 
 
 async def start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle start button click - show main menu."""
+    """Handle start button click - just delete the message since persistent keyboard is available."""
     query = update.callback_query
     await query.answer()
-    
-    user_id = update.effective_user.id
-    is_admin = await is_user_admin(user_id)
-    
-    await query.edit_message_text(
-        Messages.MAIN_MENU_HEADER,
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.main_menu(is_admin=is_admin)
-    )
+    await query.delete_message()
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /help command (shows Resources menu)."""
+    from src.handlers.resources import show_resources
+    await show_resources(update, context)
 
 
 # Export handlers
 start_handler = CommandHandler("start", start_command)
-home_handler = CommandHandler("home", home_command)
+help_command_handler = CommandHandler("help", help_command)
+
 start_callback_handler = CallbackQueryHandler(start_callback, pattern="^start$")
 

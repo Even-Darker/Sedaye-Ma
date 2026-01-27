@@ -14,7 +14,8 @@ from src.database import get_db, NotificationPreference
 async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show settings menu."""
     query = update.callback_query
-    await query.answer()
+    if query:
+        await query.answer()
     
     chat_id = update.effective_chat.id
     
@@ -44,11 +45,18 @@ async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {Messages.SETTINGS_TIP}
 """
         
-        await query.edit_message_text(
-            message,
-            parse_mode="MarkdownV2",
-            reply_markup=Keyboards.notification_settings(prefs)
-        )
+        if query:
+            await query.edit_message_text(
+                message,
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.notification_settings(prefs)
+            )
+        else:
+            await update.message.reply_text(
+                message,
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.notification_settings(prefs)
+            )
 
 
 async def toggle_notification(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,6 +85,8 @@ async def toggle_notification(update: Update, context: ContextTypes.DEFAULT_TYPE
             prefs.victories = not prefs.victories
         elif notif_type == "petitions":
             prefs.petitions = not prefs.petitions
+        elif notif_type == "emails":
+            prefs.email_campaigns = not prefs.email_campaigns
         
         await session.commit()
         

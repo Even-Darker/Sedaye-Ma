@@ -1,21 +1,45 @@
-# 🦅 Sedaye Ma (Our Voice)
+# 🦁🔊 Sedaye Ma (Voice of Us)
 
 > **Coordinating collective action against online violations.**
+
+[English](README.md) | [فارسی](README_fa.md)
+
+<div align="center">
+
+# 🦁 [Start the Bot](https://t.me/Sedaye_ma_bot) 🔊
+
+<img src=".github/assets/profile.jpg" width="200" alt="Sedaye Ma Profile">
+
+### Join the movement now! 👇
+**[t.me/Sedaye_ma_bot](https://t.me/Sedaye_ma_bot)**
+
+</div>
+
+<div align="center">
+  <h3>🗣️ The Concept</h3>
+  <p>
+    "Sedaye Ma" means <b>"Voice of Us"</b>.<br>
+    The more we join together, the stronger our voice will be.
+  </p>
+</div>
 
 Sedaye Ma is a Telegram bot designed to help communities organize and report violations on social media platforms (focusing on Instagram). It facilitates the reporting of harmful content such as violence, misinformation, propaganda, and harassment.
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![License](https://img.shields.io/badge/license-AGPLv3-blue.svg)
 
 ## ✨ Features
 
-- **Organized Reporting**: View daily targets for reporting with specific reasons.
-- **Verification System**: Automated Instagram profile validation to ensure targets exist.
-- **User Suggestions**: Community members can suggest new targets (requires Admin approval).
-- **Admin Panel**: Complete management system within Telegram for admins to approve/reject targets and manage listing.
-- **Victories**: Section to celebrate successful removals and community impact.
-- **Privacy Focused**: Built with user privacy in mind.
+- **🎯 Organized Reporting**: View daily targets for reporting with specific reasons.
+- **✉️ Email Campaigns**: Coordinate mass email actions to target organizations and officials.
+- **📝 Petitions**: Sign and track progress of community petitions.
+- **🏆 Victories**: Section to celebrate successful removals and community impact.
+- **💬 Solidarity Wall**: Anonymous messages of support from the community.
+- **📡 Free Configs**: Access to free tested configs for internet freedom.
+- **🛡️ Privacy Focused**: Built with user privacy in mind.
+- **Admin Panel**: Complete management system within Telegram.
 
 ## 🚀 Quick Start
 
@@ -103,27 +127,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 👩‍💻 Development Workflow
-
-To add features without breaking specific production deployment:
-
-### 1. Local Testing (The "Dev Pattern")
-You shouldn't wait for deployment to test changes.
-1.  **Get a Test Token**: Ask @BotFather for a second, separate bot token (e.g. `Sedaye_Dev_Bot`).
-2.  **Configure Local Env**: In your local `.env`, put this **Test Token**.
-3.  **Run Locally**: `python -m src.bot`
-4.  **test**: Interacting with your Dev Bot does not affect real users.
-
-### 2. Secure Collaboration
-Your friend can help without knowing your secrets:
-1.  They clone this repo.
-2.  They create their **own** `.env` file (git ignores it).
-3.  They use **their own** Bot Token (they can create one for free).
-4.  They code, test on their bot, and push.
-5.  You merge their code -> GitHub deploys it to the Main Bot.
-
-**Security Rule:** ⚠️ NEVER share your `.env` file or commit `TELEGRAM_BOT_TOKEN` to git!
-
 ## 📝 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the GNU Affero General Public License v3.0. See `LICENSE` for more information.
+
+<div align="center">
+  <br>
+  <b>Made with ❤️ for the GREAT people of Iran! 🦁☀️</b>
+</div>

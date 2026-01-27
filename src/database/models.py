@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Text, Boolean, 
-    DateTime, ForeignKey, JSON, Enum as SQLEnum
+    DateTime, ForeignKey, JSON, Enum as SQLEnum, UniqueConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 import enum
@@ -67,6 +67,8 @@ class Admin(Base):
     # Relationships
     targets_added = relationship("InstagramTarget", back_populates="added_by")
     announcements = relationship("Announcement", back_populates="created_by")
+    free_configs = relationship("FreeConfig", back_populates="created_by")
+    email_campaigns = relationship("EmailCampaign", back_populates="created_by")
     
     def __repr__(self):
         return f"<Admin(id={self.id}, role={self.role.value})>"
@@ -186,6 +188,7 @@ class Petition(Base):
     # Progress tracking
     signatures_goal = Column(Integer, default=100000)
     signatures_current = Column(Integer, default=0)
+    visit_count = Column(Integer, default=0)
     
     # Status
     status = Column(SQLEnum(PetitionStatus), default=PetitionStatus.ACTIVE)
@@ -208,6 +211,30 @@ class Petition(Base):
             return None
         delta = self.deadline - datetime.utcnow()
         return max(0, delta.days)
+
+
+# ═══════════════════════════════════════════════════════════════
+# FREE CONFIG MODEL
+# ═══════════════════════════════════════════════════════════════
+
+class FreeConfig(Base):
+    """Free VPN configs shared by admins."""
+    __tablename__ = "free_configs"
+
+    id = Column(Integer, primary_key=True)
+    config_uri = Column(Text, nullable=False)  # v2ray URI
+    description = Column(String(255), nullable=True)  # Optional note (e.g., "US Server", "Fast")
+
+    is_active = Column(Boolean, default=True)
+    report_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_admin_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
+
+    # Relationship
+    created_by = relationship("Admin", back_populates="free_configs")
+
+    def __repr__(self):
+        return f"<FreeConfig(id={self.id}, description={self.description})>"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -273,10 +300,187 @@ class NotificationPreference(Base):
     announcements_urgent = Column(Boolean, default=True)
     announcements_news = Column(Boolean, default=True)
     victories = Column(Boolean, default=True)
-    petitions = Column(Boolean, default=False)
+    petitions = Column(Boolean, default=True)
+    email_campaigns = Column(Boolean, default=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+# ═══════════════════════════════════════════════════════════════
+# USER REPORT LOG (HASHED FOR PRIVACY)
+# ═══════════════════════════════════════════════════════════════
+
+class UserReportLog(Base):
+    """
+    Tracks which users have reported which targets to prevent duplicates.
+    STORES HASHED IDS ONLY. REVERSIBLE ONLY WITH SERVER-SIDE SALT.
+    """
+    __tablename__ = "user_report_logs"
+    
+    id = Column(Integer, primary_key=True)
+    target_id = Column(Integer, ForeignKey("instagram_targets.id"), nullable=False)
+    
+    # SHA256(user_id + salt)
+    user_hash = Column(String(64), nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Ensure one report per user per target
+    __table_args__ = (
+        UniqueConstraint('target_id', 'user_hash', name='uq_target_user_hash'),
+    )
+    
+    
     def __repr__(self):
-        return f"<NotificationPreference(id={self.id})>"
+        return f"<ReportLog(target={self.target_id})>"
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER CONCERN LOG (HASHED FOR PRIVACY)
+# ═══════════════════════════════════════════════════════════════
+
+class UserConcernLog(Base):
+    """
+    Tracks which users have reported concerns (Page Closed / Other) for which targets.
+    To prevent spamming admins with the same 'page closed' claim.
+    STORES HASHED IDS ONLY.
+    """
+    __tablename__ = "user_concern_logs"
+    
+    id = Column(Integer, primary_key=True)
+    target_id = Column(Integer, ForeignKey("instagram_targets.id"), nullable=False)
+    
+    # SHA256(user_id + salt)
+    user_hash = Column(String(64), nullable=False)
+    concern_type = Column(String(50), nullable=False) # "closed", "other"
+    message_content = Column(Text, nullable=True) # User's custom message (for "other")
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Ensure one concern per user per target per type
+    __table_args__ = (
+        UniqueConstraint('target_id', 'user_hash', 'concern_type', name='uq_concern_target_user_type'),
+    )
+    
+    def __repr__(self):
+        return f"<ConcernLog(target={self.target_id}, type={self.concern_type})>"
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER VICTORY LOG (HASHED - RATE LIMITED)
+# ═══════════════════════════════════════════════════════════════
+
+class UserVictoryLog(Base):
+    """
+    Tracks victory submissions to prevent spam.
+    Users can only submit a victory for a target once every 24 hours.
+    STORES HASHED IDS ONLY.
+    """
+    __tablename__ = "user_victory_logs"
+    
+    id = Column(Integer, primary_key=True)
+    target_id = Column(Integer, ForeignKey("instagram_targets.id"), nullable=False)
+    
+    # SHA256(user_id + salt)
+    user_hash = Column(String(64), nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<VictoryLog(target={self.target_id}, date={self.created_at})>"
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER CONFIG REPORT (HASHED - RATE LIMITED)
+# ═══════════════════════════════════════════════════════════════
+
+class UserConfigReport(Base):
+    """
+    Tracks which users have reported which free configs.
+    Prevents duplicate reporting (spam).
+    STORES HASHED IDS ONLY.
+    """
+    __tablename__ = "user_config_reports"
+
+    id = Column(Integer, primary_key=True)
+    config_id = Column(Integer, ForeignKey("free_configs.id"), nullable=False)
+    user_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('config_id', 'user_hash', name='uq_config_user_hash'),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
+# EMAIL CAMPAIGN MODEL
+# ═══════════════════════════════════════════════════════════════
+
+class EmailCampaign(Base):
+    """Email campaigns for users to send."""
+    __tablename__ = "email_campaigns"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False) # Why send this?
+    
+    # Email details
+    receiver_email = Column(String(255), nullable=False)
+    subject = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    
+    # Tracking
+    action_count = Column(Integer, default=0)
+
+    is_active = Column(Boolean, default=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_admin_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
+    
+    # Relationships
+    created_by = relationship("Admin", back_populates="email_campaigns")
+    
+    def __repr__(self):
+        return f"<EmailCampaign(id={self.id}, title={self.title[:30]})>"
+        
+    @property
+    def mailto_link(self) -> str:
+        """Generate mailto link."""
+        from urllib.parse import quote
+        safe_subject = quote(self.subject)
+        safe_body = quote(self.body)
+        return f"mailto:{self.receiver_email}?subject={safe_subject}&body={safe_body}"
+
+    @property
+    def redirect_link(self) -> str:
+        """Generate HTTPS redirect link."""
+        from urllib.parse import quote
+        safe_to = quote(self.receiver_email)
+        safe_subject = quote(self.subject)
+        safe_body = quote(self.body)
+        # Using the new deployed service
+        return f"https://even-darker.github.io/Email-Redirector/?to={safe_to}&subject={safe_subject}&body={safe_body}"
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER EMAIL ACTION (HASHED - RATE LIMITED)
+# ═══════════════════════════════════════════════════════════════
+
+class UserEmailAction(Base):
+    """
+    Tracks which users have sent emails to prevent spam counting.
+    STORES HASHED IDS ONLY.
+    """
+    __tablename__ = "user_email_actions"
+    
+    id = Column(Integer, primary_key=True)
+    campaign_id = Column(Integer, ForeignKey("email_campaigns.id"), nullable=False)
+    user_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        UniqueConstraint('campaign_id', 'user_hash', name='uq_campaign_user_hash'),
+    )
+    
+    def __repr__(self):
+        return f"<UserEmailAction(campaign={self.campaign_id})>"

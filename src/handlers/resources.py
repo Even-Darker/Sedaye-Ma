@@ -14,13 +14,21 @@ from src.database import get_db, ReportTemplate
 async def show_resources(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show resources menu."""
     query = update.callback_query
-    await query.answer()
+    if query:
+        await query.answer()
     
-    await query.edit_message_text(
-        Messages.RESOURCES_HEADER,
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.resources_menu()
-    )
+    if query:
+        await query.edit_message_text(
+            Messages.RESOURCES_HEADER,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.resources_menu()
+        )
+    else:
+        await update.message.reply_text(
+            Messages.RESOURCES_HEADER,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.resources_menu()
+        )
 
 
 async def show_report_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -139,34 +147,17 @@ async def view_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def show_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show support resources."""
+async def show_petitions_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show info about petitions."""
     query = update.callback_query
     await query.answer()
     
-    guide = """
-🆘 *منابع حمایتی*
-
-*حقوق بشر:*
-🔗 Amnesty International Iran
-🔗 Human Rights Watch
-🔗 Iran Human Rights
-
-*حقوقی:*
-🔗 Center for Human Rights in Iran
-🔗 Miaan Group
-
-*روانی:*
-🔗 منابع بهداشت روان به زودی اضافه می‌شود
-
-💚 شما تنها نیستید\\. ما با هم هستیم\\.
-"""
-    
     await query.edit_message_text(
-        guide,
+        Messages.PETITIONS_GUIDE_TEXT,
         parse_mode="MarkdownV2",
         reply_markup=Keyboards.back_to_main()
     )
+
 
 
 # Export handlers
@@ -175,6 +166,6 @@ resources_handlers = [
     CallbackQueryHandler(show_report_guide, pattern=f"^{CallbackData.RESOURCE_REPORT_IG}$"),
     CallbackQueryHandler(show_safety_guide, pattern=f"^{CallbackData.RESOURCE_SAFETY}$"),
     CallbackQueryHandler(show_templates_list, pattern=f"^{CallbackData.RESOURCE_TEMPLATES}$"),
+    CallbackQueryHandler(show_petitions_info, pattern=f"^{CallbackData.RESOURCE_PETITIONS_INFO}$"),
     CallbackQueryHandler(view_template, pattern=r"^template:view:\w+$"),
-    CallbackQueryHandler(show_support, pattern=f"^{CallbackData.RESOURCE_SUPPORT}$"),
 ]

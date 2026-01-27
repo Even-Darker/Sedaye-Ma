@@ -9,6 +9,8 @@ from config import Messages, settings
 from src.utils import Keyboards
 from src.utils.keyboards import CallbackData
 from src.database import get_db, Admin
+# Import from instagram to reuse filter menu display logic
+from src.handlers.instagram import show_filter_menu
 
 
 async def is_user_admin(user_id: int) -> bool:
@@ -23,21 +25,29 @@ async def is_user_admin(user_id: int) -> bool:
 
 
 async def back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle back to main menu."""
+    """Handle back to main menu - delete message since persistent keyboard is always available."""
     query = update.callback_query
     await query.answer()
     
-    user_id = update.effective_user.id
-    is_admin = await is_user_admin(user_id)
+    # Delete the inline message - user should use persistent keyboard
+    await query.delete_message()
+
+
+async def back_to_report_sandisi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle back to Report Sandisi menu."""
+    query = update.callback_query
+    await query.answer()
     
     await query.edit_message_text(
-        Messages.MAIN_MENU_HEADER,
+        Messages.REPORT_SANDISI_DESCRIPTION,
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.main_menu(is_admin=is_admin)
+        reply_markup=Keyboards.report_sandisi_menu()
     )
 
 
 # Export handlers
 menu_handlers = [
     CallbackQueryHandler(back_to_main, pattern=f"^{CallbackData.BACK_MAIN}$"),
+    CallbackQueryHandler(back_to_report_sandisi, pattern=f"^{CallbackData.BACK_SANDISI}$"),
+    CallbackQueryHandler(show_filter_menu, pattern=f"^{CallbackData.BACK_FILTER}$"),
 ]

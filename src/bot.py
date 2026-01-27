@@ -6,34 +6,52 @@ A privacy-first, open-source bot for amplifying the voice of Iranian people.
 """
 import logging
 import asyncio
+import sys
+import os
+
+# Add parent directory to path to allow imports from config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from telegram import BotCommand
-from telegram.ext import Application
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
 from config import settings
 from src.database import init_db
 from src.handlers import (
     start_handler,
     start_callback_handler,
-    home_handler,
     menu_handlers,
     instagram_handlers,
     victories_handlers,
+    free_configs_handlers,
     announcements_handlers,
     petitions_handlers,
     solidarity_handlers,
     resources_handlers,
     settings_handlers,
     admin_handlers,
-    stats_handlers,
     suggest_handlers,
+    report_removal_conversation,
+    text_menu_handler,
+    email_campaign_handlers,
 )
 
 
 # Configure logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+
     level=logging.INFO
 )
+# Suppress httpx logs (telegram polling)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+# Force DEBUG for our code
+logging.getLogger("src").setLevel(logging.DEBUG)
+
+# Ensure environment is loaded (redundant safety)
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +64,7 @@ async def post_init(application: Application) -> None:
     # Set bot commands
     commands = [
         BotCommand("start", "شروع ربات"),
-        BotCommand("home", "خانه 🏠"),
+        BotCommand("help", "راهنما"),
     ]
     await application.bot.set_my_commands(commands)
     logger.info("Bot commands set successfully!")
@@ -60,6 +78,8 @@ def main():
         return
     
     logger.info("🔥 Starting Sedaye Ma Bot...")
+    from src.version import __version__
+    logger.info(f"Version: {__version__}")
     logger.info(f"Environment: {settings.environment}")
     
     # Build application
@@ -72,12 +92,11 @@ def main():
     
     # Register handlers
     # Start command and main menu button
+    from src.handlers.start import help_command_handler
     application.add_handler(start_handler)
-    application.add_handler(home_handler)
+    application.add_handler(help_command_handler)
     application.add_handler(start_callback_handler)    
-    # Menu navigation
-    for handler in menu_handlers:
-        application.add_handler(handler)
+
     
     # Instagram targets
     for handler in instagram_handlers:
@@ -86,7 +105,11 @@ def main():
     # Victories
     for handler in victories_handlers:
         application.add_handler(handler)
-    
+
+    # Free Configs
+    for handler in free_configs_handlers:
+        application.add_handler(handler)
+
     # Announcements
     for handler in announcements_handlers:
         application.add_handler(handler)
@@ -107,17 +130,37 @@ def main():
     for handler in settings_handlers:
         application.add_handler(handler)
     
-    # Statistics
-    for handler in stats_handlers:
-        application.add_handler(handler)
+
+    
+    # User removal reports (victories)
+    application.add_handler(report_removal_conversation)
     
     # User suggestions 
     for handler in suggest_handlers:
         application.add_handler(handler)
     
+    # Register Admin Petitions Handlers
+    from src.handlers.admin_petitions import manage_petitions, add_petition_conv, delete_petition_command
+    application.add_handler(add_petition_conv)
+    application.add_handler(CallbackQueryHandler(manage_petitions, pattern=r"^admin:petitions:page:\d+$"))
+    application.add_handler(CallbackQueryHandler(manage_petitions, pattern=r"^admin:petitions$")) # Alias for first page
+    application.add_handler(CallbackQueryHandler(manage_petitions, pattern=r"^admin:petitions$")) # Alias for first page
+    application.add_handler(MessageHandler(filters.Regex(r"^/delete_petition_\d+$"), delete_petition_command))
+
+    # Email Campaigns
+    for handler in email_campaign_handlers:
+        application.add_handler(handler)
+
     # Admin handlers (must be last to not interfere with conversations)
     for handler in admin_handlers:
         application.add_handler(handler)
+        
+    # Menu navigation (Generic back buttons - must be after conversations)
+    for handler in menu_handlers:
+        application.add_handler(handler)
+
+    # Text menu handler (must be last to not catch commands or conversation states)
+    application.add_handler(text_menu_handler)
     
     logger.info("✅ All handlers registered!")
     logger.info("🚀 Bot is running... Press Ctrl+C to stop.")

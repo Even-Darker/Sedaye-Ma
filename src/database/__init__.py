@@ -7,14 +7,17 @@ from .models import (
     Victory,
     Announcement,
     Petition,
+    FreeConfig,
     SolidarityMessage,
     ReportTemplate,
     NotificationPreference,
+    UserReportLog,
+    UserConcernLog,
 )
 
 __all__ = [
     'get_db',
-    'init_db', 
+    'init_db',
     'AsyncSessionLocal',
     'Base',
     'Admin',
@@ -22,7 +25,10 @@ __all__ = [
     'Victory',
     'Announcement',
     'Petition',
+    'FreeConfig',
     'SolidarityMessage',
     'ReportTemplate',
     'NotificationPreference',
+    'UserReportLog',
+    'UserConcernLog',
 ]

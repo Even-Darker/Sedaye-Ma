@@ -5,7 +5,7 @@ Uses async SQLAlchemy with aiosqlite for SQLite support.
 from contextlib import asynccontextmanager
 from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import event
+from sqlalchemy import event, text
 
 from config import settings
 from .models import Base
@@ -35,6 +35,12 @@ async def init_db():
     
     # Seed default report templates
     await seed_report_templates()
+    
+    # Sync Super Admins from Environment
+    await sync_super_admins()
+
+    # Run Migrations
+    await check_migrations()
 
 
 async def seed_report_templates():
@@ -95,6 +101,34 @@ async def seed_report_templates():
         await session.commit()
 
 
+async def sync_super_admins():
+    """Sync super admins from environment settings to database."""
+    from .models import Admin, AdminRole
+    from sqlalchemy import select
+    
+    if not settings.super_admin_ids:
+        return
+
+    async with AsyncSessionLocal() as session:
+        for user_id in settings.super_admin_ids:
+            # Check if exists
+            result = await session.execute(
+                select(Admin).where(Admin.telegram_id == user_id)
+            )
+            admin = result.scalar_one_or_none()
+            
+            if not admin:
+                # Create new super admin
+                admin = Admin(telegram_id=user_id, role=AdminRole.SUPER_ADMIN)
+                session.add(admin)
+            elif admin.role != AdminRole.SUPER_ADMIN:
+                # Promote existing admin
+                admin.role = AdminRole.SUPER_ADMIN
+                session.add(admin)
+        
+        await session.commit()
+
+
 @asynccontextmanager
 async def get_db():
     """Get database session context manager."""
@@ -107,3 +141,35 @@ async def get_db():
             raise
         finally:
             await session.close()
+
+
+async def check_migrations():
+    """Check and run necessary database migrations."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    async with AsyncSessionLocal() as session:
+        # Check if free_configs.report_count exists
+        try:
+            # We can't easily check columns in sqlite via sqlalchemy inspector in async mode quickly without creating a sync engine or raw sql
+            # Let's try to query it. If it fails, add it.
+            await session.execute(text("SELECT report_count FROM free_configs LIMIT 1"))
+        except Exception:
+            logger.info("Migration: Adding report_count to free_configs...")
+            await session.rollback() # Clear error
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE free_configs ADD COLUMN report_count INTEGER DEFAULT 0"))
+            logger.info("Migration: Done.")
+        else:
+            logger.info("Migration: No changes needed for free_configs.")
+            
+        # Check if notification_preferences.email_campaigns exists
+        try:
+            await session.execute(text("SELECT email_campaigns FROM notification_preferences LIMIT 1"))
+        except Exception:
+            logger.info("Migration: Adding email_campaigns to notification_preferences...")
+            await session.rollback()
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE notification_preferences ADD COLUMN email_campaigns BOOLEAN DEFAULT 1"))
+            logger.info("Migration: Added email_campaigns.")
+
