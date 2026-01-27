@@ -233,6 +233,11 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     SIGN_PETITION = "🔗 مشاهده"
     NEXT_BUTTON = "بعدی ➡️"
     PREV_BUTTON = "قبلی ⬅️"
+
+    PETITIONS_HELP_FOOTER = """
+❓ *آشنا نیستید؟*
+اگر با پتیشن‌ها آشنا نیستید، در منوی /help گزینه «🗳️ درباره پتیشن‌ها» را انتخاب کنید\\.
+"""
     
     # ═══════════════════════════════════════════════════════════════
     # SOLIDARITY WALL

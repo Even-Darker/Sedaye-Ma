@@ -73,7 +73,7 @@ async def render_petition_page(update: Update, context: ContextTypes.DEFAULT_TYP
         # Formatters.format_petition_card starts with title.
         # Let's prepend the main header.
         
-        message = f"{header}\n{card_content}"
+        message = f"{header}\n{card_content}\n{Messages.PETITIONS_HELP_FOOTER}"
         
         keyboard = Keyboards.petition_actions(petition.id, petition.url, offset, total)
         
@@ -112,7 +112,7 @@ async def view_petition(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
             return
         
-        message = Formatters.format_petition_card(petition)
+        message = f"{Formatters.format_petition_card(petition)}\n{Messages.PETITIONS_HELP_FOOTER}"
         
         await query.edit_message_text(
             message,
