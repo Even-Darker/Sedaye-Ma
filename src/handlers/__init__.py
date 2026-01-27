@@ -14,6 +14,21 @@ from .suggest import suggest_handlers
 from .text_menu import text_menu_handler
 from .removal import report_removal_conversation
 
+from .email_campaigns import list_email_campaigns, track_email_action, show_email_details, show_invalid_email_alert
+from telegram.ext import CallbackQueryHandler
+from src.utils.keyboards import CallbackData
+
+email_campaign_handlers = [
+    CallbackQueryHandler(list_email_campaigns, pattern=f"^{CallbackData.MENU_EMAILS}$"),
+    CallbackQueryHandler(list_email_campaigns, pattern="^emails:page:"),
+    CallbackQueryHandler(show_email_details, pattern="^email:show:"),
+    CallbackQueryHandler(show_invalid_email_alert, pattern="^email:invalid:"),
+    CallbackQueryHandler(track_email_action, pattern="^email:done:"),
+]
+
+
+
+
 __all__ = [
     'start_handler',
     'start_callback_handler',
@@ -30,5 +45,6 @@ __all__ = [
     'suggest_handlers',
     'text_menu_handler',
     'report_removal_conversation',
+    'email_campaign_handlers',
 ]
 

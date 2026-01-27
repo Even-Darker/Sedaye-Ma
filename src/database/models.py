@@ -68,6 +68,7 @@ class Admin(Base):
     targets_added = relationship("InstagramTarget", back_populates="added_by")
     announcements = relationship("Announcement", back_populates="created_by")
     free_configs = relationship("FreeConfig", back_populates="created_by")
+    email_campaigns = relationship("EmailCampaign", back_populates="created_by")
     
     def __repr__(self):
         return f"<Admin(id={self.id}, role={self.role.value})>"
@@ -409,5 +410,76 @@ class UserConfigReport(Base):
         UniqueConstraint('config_id', 'user_hash', name='uq_config_user_hash'),
     )
 
+
+# ═══════════════════════════════════════════════════════════════
+# EMAIL CAMPAIGN MODEL
+# ═══════════════════════════════════════════════════════════════
+
+class EmailCampaign(Base):
+    """Email campaigns for users to send."""
+    __tablename__ = "email_campaigns"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False) # Why send this?
+    
+    # Email details
+    receiver_email = Column(String(255), nullable=False)
+    subject = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    
+    # Tracking
+    action_count = Column(Integer, default=0)
+
+    is_active = Column(Boolean, default=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_admin_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
+    
+    # Relationships
+    created_by = relationship("Admin", back_populates="email_campaigns")
+    
     def __repr__(self):
-        return f"<UserConfigReport(config={self.config_id})>"
+        return f"<EmailCampaign(id={self.id}, title={self.title[:30]})>"
+        
+    @property
+    def mailto_link(self) -> str:
+        """Generate mailto link."""
+        from urllib.parse import quote
+        safe_subject = quote(self.subject)
+        safe_body = quote(self.body)
+        return f"mailto:{self.receiver_email}?subject={safe_subject}&body={safe_body}"
+
+    @property
+    def redirect_link(self) -> str:
+        """Generate HTTPS redirect link."""
+        from urllib.parse import quote
+        safe_to = quote(self.receiver_email)
+        safe_subject = quote(self.subject)
+        safe_body = quote(self.body)
+        # Using the new deployed service
+        return f"https://even-darker.github.io/Email-Redirector/?to={safe_to}&subject={safe_subject}&body={safe_body}"
+
+
+# ═══════════════════════════════════════════════════════════════
+# USER EMAIL ACTION (HASHED - RATE LIMITED)
+# ═══════════════════════════════════════════════════════════════
+
+class UserEmailAction(Base):
+    """
+    Tracks which users have sent emails to prevent spam counting.
+    STORES HASHED IDS ONLY.
+    """
+    __tablename__ = "user_email_actions"
+    
+    id = Column(Integer, primary_key=True)
+    campaign_id = Column(Integer, ForeignKey("email_campaigns.id"), nullable=False)
+    user_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        UniqueConstraint('campaign_id', 'user_hash', name='uq_campaign_user_hash'),
+    )
+    
+    def __repr__(self):
+        return f"<UserEmailAction(campaign={self.campaign_id})>"

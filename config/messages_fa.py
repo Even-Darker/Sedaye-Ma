@@ -166,6 +166,19 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     FREE_CONFIGS_INSTRUCTIONS = "💡 *نحوه استفاده:*\n1\\. روی کانفیگ بزنید تا کپی شود\n2\\. در برنامه v2ray خود paste کنید\n3\\. اتصال برقرار کنید"
 
     # ═══════════════════════════════════════════════════════════════
+    # EMAIL CAMPAIGNS
+    # ═══════════════════════════════════════════════════════════════
+    
+    MENU_EMAILS = "📧 کمپین‌های ایمیلی"
+    EMAILS_HEADER = "📧 *کمپین‌های ایمیلی*"
+    EMAILS_SUBTITLE = "_ارسال ایمیل گروهی به سازمان‌ها و مقامات_"
+    EMAILS_EMPTY = "در حال حاضر کمپین فعالی وجود ندارد\\."
+    EMAIL_SEND_BTN = "📤 ارسال ایمیل"
+    EMAIL_DONE_BTN = "✅ ارسال کردم"
+    EMAIL_THANKS = "🙏 ممنون! ایمیل شما ثبت شد."
+
+
+    # ═══════════════════════════════════════════════════════════════
     # LIVE STATISTICS
     # ═══════════════════════════════════════════════════════════════
     
@@ -284,6 +297,8 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     ADMIN_SOLIDARITY = "💬 تأیید پیام‌ها"
     ADMIN_MANAGE_ADMINS = "👥 مدیریت ادمین‌ها"
     ADMIN_STATS = "📊 آمار"
+    ADMIN_MANAGE_EMAILS_BTN = "📧 مدیریت ایمیل‌ها"
+    ADMIN_ADD_EMAIL_BTN = "➕ افزودن ایمیل"
     
     # ═══════════════════════════════════════════════════════════════
     # REPORT TEMPLATES

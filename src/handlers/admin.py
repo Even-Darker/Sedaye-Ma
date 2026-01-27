@@ -20,6 +20,12 @@ from src.utils.keyboards import CallbackData
 from src.utils.decorators import admin_required, super_admin_required
 from src.database import get_db, Admin, InstagramTarget, Victory, Announcement, SolidarityMessage, FreeConfig
 from src.database.models import TargetStatus, AdminRole
+from .admin_email import (
+    add_email_conversation,
+    manage_emails,
+    delete_email_handler,
+    view_email_admin_handler
+)
 
 
 # Conversation states
@@ -1382,7 +1388,9 @@ async def admin_process_closed_report(update: Update, context: ContextTypes.DEFA
 admin_handlers = [
     add_target_conversation,
     add_admin_conversation,
+    add_admin_conversation,
     add_config_conversation,
+    add_email_conversation,
     
     # Menu Navigation
     CallbackQueryHandler(admin_panel, pattern="^admin:panel$"),
@@ -1423,6 +1431,11 @@ admin_handlers = [
     # Configs Management
     CallbackQueryHandler(manage_configs, pattern=f"^{CallbackData.ADMIN_MANAGE_CONFIGS}$"),
     CallbackQueryHandler(delete_config, pattern=r"^admin:delete_config:\d+$"),
+    
+    # Email Campaigns Management
+    CallbackQueryHandler(manage_emails, pattern=f"^{CallbackData.ADMIN_MANAGE_EMAILS}(:\d+)?$"),
+    CallbackQueryHandler(delete_email_handler, pattern=r"^admin:delete_email:\d+$"),
+    CallbackQueryHandler(view_email_admin_handler, pattern=r"^admin:email:view:\d+$"),
 
     # Quick Action Confirmation
     CallbackQueryHandler(admin_process_closed_report, pattern=r"^admin:closed:(yes|no):\d+$"),
