@@ -147,6 +147,18 @@ async def view_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def show_petitions_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show info about petitions."""
+    query = update.callback_query
+    await query.answer()
+    
+    await query.edit_message_text(
+        Messages.PETITIONS_GUIDE_TEXT,
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.back_to_main()
+    )
+
+
 
 # Export handlers
 resources_handlers = [
@@ -154,5 +166,6 @@ resources_handlers = [
     CallbackQueryHandler(show_report_guide, pattern=f"^{CallbackData.RESOURCE_REPORT_IG}$"),
     CallbackQueryHandler(show_safety_guide, pattern=f"^{CallbackData.RESOURCE_SAFETY}$"),
     CallbackQueryHandler(show_templates_list, pattern=f"^{CallbackData.RESOURCE_TEMPLATES}$"),
+    CallbackQueryHandler(show_petitions_info, pattern=f"^{CallbackData.RESOURCE_PETITIONS_INFO}$"),
     CallbackQueryHandler(view_template, pattern=r"^template:view:\w+$"),
 ]

@@ -123,7 +123,6 @@ class Formatters:
 
 📝 {Formatters.escape_markdown(petition.description[:200])}{'\\.\\.\\.' if len(petition.description) > 200 else ''}
 
-📊 {Messages.PETITION_PROGRESS.format(current, goal)}
 """
     
     @staticmethod

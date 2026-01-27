@@ -81,6 +81,7 @@ class CallbackData:
     RESOURCE_SAFETY = "resource:safety"
     RESOURCE_TEMPLATES = "resource:templates"
     RESOURCE_SUPPORT = "resource:support"
+    RESOURCE_PETITIONS_INFO = "resource:petitions_info"
     TEMPLATE_VIEW = "template:view:{type}"
     
     # Settings
@@ -388,6 +389,7 @@ class Keyboards:
             [InlineKeyboardButton(Messages.GUIDE_REPORT_IG, callback_data=CallbackData.RESOURCE_REPORT_IG)],
             [InlineKeyboardButton(Messages.GUIDE_SAFETY, callback_data=CallbackData.RESOURCE_SAFETY)],
             [InlineKeyboardButton(Messages.GUIDE_TEMPLATES, callback_data=CallbackData.RESOURCE_TEMPLATES)],
+            [InlineKeyboardButton(Messages.GUIDE_PETITIONS, callback_data=CallbackData.RESOURCE_PETITIONS_INFO)],
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
         ])
     
