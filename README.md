@@ -126,3 +126,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 📝 License
 
 Distributed under the GNU Affero General Public License v3.0. See `LICENSE` for more information.
+
+<div align="center">
+  <br>
+  <b>Made with ❤️ for the GREAT people of Iran! 🦁☀️</b>
+</div>
