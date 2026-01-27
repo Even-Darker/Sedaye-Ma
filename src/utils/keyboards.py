@@ -153,26 +153,6 @@ class Keyboards:
         ])
     
     @staticmethod
-    def main_menu(is_admin: bool = False) -> InlineKeyboardMarkup:
-        """Main menu keyboard."""
-        buttons = [
-            [InlineKeyboardButton(Messages.MENU_TARGETS, callback_data=CallbackData.MENU_TARGETS)],
-            [InlineKeyboardButton(Messages.MENU_VICTORIES, callback_data=CallbackData.MENU_VICTORIES)],
-            [InlineKeyboardButton(Messages.MENU_FREE_CONFIGS, callback_data=CallbackData.MENU_FREE_CONFIGS)],
-            [InlineKeyboardButton(Messages.MENU_STATS, callback_data=CallbackData.MENU_STATS)],
-            # [InlineKeyboardButton(Messages.MENU_ANNOUNCEMENTS, callback_data=CallbackData.MENU_ANNOUNCEMENTS)],
-            [InlineKeyboardButton(Messages.MENU_PETITIONS, callback_data=CallbackData.MENU_PETITIONS)],
-            # [InlineKeyboardButton(Messages.MENU_SOLIDARITY, callback_data=CallbackData.MENU_SOLIDARITY)],
-            # [InlineKeyboardButton(Messages.MENU_RESOURCES, callback_data=CallbackData.MENU_RESOURCES)],
-            [InlineKeyboardButton(Messages.MENU_SETTINGS, callback_data=CallbackData.MENU_SETTINGS)],
-            [InlineKeyboardButton(Messages.MENU_EMAILS, callback_data=CallbackData.MENU_EMAILS)],
-        ]
-        # Admin only: show admin panel button
-        if is_admin:
-            buttons.append([InlineKeyboardButton("🔐 پنل مدیریت", callback_data="admin:panel")])
-        return InlineKeyboardMarkup(buttons)
-    
-    @staticmethod
     def main_menu_persistent(is_admin: bool = False) -> ReplyKeyboardMarkup:
         """Main menu persistent keyboard (Reply Keyboard)."""
         buttons = [
