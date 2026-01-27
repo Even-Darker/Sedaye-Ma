@@ -12,6 +12,14 @@
 
 </div>
 
+<div align="center">
+  <h3>🗣️ The Concept</h3>
+  <p>
+    "Sedaye Ma" means <b>"Voice of Us"</b>.<br>
+    The more we join together, the stronger our voice will be.
+  </p>
+</div>
+
 Sedaye Ma is a Telegram bot designed to help communities organize and report violations on social media platforms (focusing on Instagram). It facilitates the reporting of harmful content such as violence, misinformation, propaganda, and harassment.
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
