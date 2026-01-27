@@ -250,3 +250,45 @@ class NotificationService:
                 except Exception as e:
                     logger.error(f"FAILED to send to admin {uid}: {e}")
             return sent_count
+
+    async def broadcast_new_targets(self, count: int):
+        """Broadcast new targets alert to all users."""
+        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+        from src.utils.keyboards import CallbackData
+        
+        logger.info(f"Starting broadcast_new_targets for {count} targets...")
+        
+        async with get_db() as session:
+            # Broadcast to users who enabled 'targets' notifications
+            try:
+                result = await session.execute(
+                    select(NotificationPreference)
+                    .where(NotificationPreference.targets == True)
+                )
+                subscribers = result.scalars().all()
+                logger.info(f"Broadcast: Found {len(subscribers)} subscribers with targets=True")
+            except Exception as e:
+                logger.error(f"Broadcast Error querying subscribers: {e}")
+                return 0
+            
+            message = Messages.NEW_TARGET_ALERT.format(count=count)
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton(Messages.MENU_TARGETS, callback_data=CallbackData.FILTER_NEW)]
+            ])
+            
+            sent_count = 0
+            for pref in subscribers:
+                try:
+                    await self.bot.send_message(
+                        chat_id=pref.chat_id,
+                        text=message,
+                        parse_mode="MarkdownV2",
+                        reply_markup=keyboard
+                    )
+                    sent_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to send target alert to {pref.chat_id}: {e}")
+            
+            logger.info(f"Broadcast: Sent to {sent_count} users")
+            return sent_count

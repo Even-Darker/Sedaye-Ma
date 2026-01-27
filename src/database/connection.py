@@ -173,3 +173,13 @@ async def check_migrations():
                 await conn.execute(text("ALTER TABLE notification_preferences ADD COLUMN email_campaigns BOOLEAN DEFAULT 1"))
             logger.info("Migration: Added email_campaigns.")
 
+        # Check if notification_preferences.targets exists
+        try:
+            await session.execute(text("SELECT targets FROM notification_preferences LIMIT 1"))
+        except Exception:
+            logger.info("Migration: Adding targets to notification_preferences...")
+            await session.rollback()
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE notification_preferences ADD COLUMN targets BOOLEAN DEFAULT 1"))
+            logger.info("Migration: Added targets.")
+

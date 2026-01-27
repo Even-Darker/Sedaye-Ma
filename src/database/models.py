@@ -300,6 +300,7 @@ class NotificationPreference(Base):
     announcements_urgent = Column(Boolean, default=True)
     announcements_news = Column(Boolean, default=True)
     victories = Column(Boolean, default=True)
+    targets = Column(Boolean, default=True)
     petitions = Column(Boolean, default=True)
     email_campaigns = Column(Boolean, default=True)
     

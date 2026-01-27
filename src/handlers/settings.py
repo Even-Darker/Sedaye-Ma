@@ -32,6 +32,7 @@ async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 announcements_urgent=True,
                 announcements_news=True,
                 victories=True,
+                targets=True,
                 petitions=False
             )
             session.add(prefs)
@@ -83,6 +84,8 @@ async def toggle_notification(update: Update, context: ContextTypes.DEFAULT_TYPE
             prefs.announcements_news = not prefs.announcements_news
         elif notif_type == "victories":
             prefs.victories = not prefs.victories
+        elif notif_type == "targets":
+            prefs.targets = not prefs.targets
         elif notif_type == "petitions":
             prefs.petitions = not prefs.petitions
         elif notif_type == "emails":

@@ -304,6 +304,17 @@ async def receive_suggest_reasons(update: Update, context: ContextTypes.DEFAULT_
                 f"✅ *{added_count} صفحه اضافه شد\\!*{dup_text}\n\n"
                 f"📄 دلایل: {Formatters.escape_markdown(', '.join(reasons))}\n"
             )
+            
+            # Broadcast notification if admin added active targets
+            if added_count > 0:
+                try:
+                    from src.services.notification_service import NotificationService
+                    await NotificationService(context.bot).broadcast_new_targets(added_count)
+                except Exception as e:
+                    # Log error but don't fail the response
+                    import logging
+                    logging.getLogger(__name__).error(f"Failed to broadcast from suggest: {e}")
+            
         else:
              msg = (
                 f"✅ *پیشنهاد {added_count} صفحه ثبت شد\\!*{dup_text}\n\n"

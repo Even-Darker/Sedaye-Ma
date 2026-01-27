@@ -415,25 +415,28 @@ class Keyboards:
         
         return InlineKeyboardMarkup([
             [InlineKeyboardButton(
+                f"{Messages.NOTIF_TARGETS} [{toggle_text(prefs.targets)}]",
+                callback_data=CallbackData.NOTIF_TOGGLE.format(type="targets")
+            )],
+            [InlineKeyboardButton(
                 f"{Messages.NOTIF_URGENT} [{toggle_text(prefs.announcements_urgent)}]",
                 callback_data=CallbackData.NOTIF_TOGGLE.format(type="urgent")
             )],
             [InlineKeyboardButton(
                 f"{Messages.NOTIF_NEWS} [{toggle_text(prefs.announcements_news)}]",
                 callback_data=CallbackData.NOTIF_TOGGLE.format(type="news")
-            )],
-            [InlineKeyboardButton(
+            ), InlineKeyboardButton(
                 f"{Messages.NOTIF_VICTORIES} [{toggle_text(prefs.victories)}]",
                 callback_data=CallbackData.NOTIF_TOGGLE.format(type="victories")
             )],
             [InlineKeyboardButton(
                 f"{Messages.NOTIF_PETITIONS} [{toggle_text(prefs.petitions)}]",
                 callback_data=CallbackData.NOTIF_TOGGLE.format(type="petitions")
-            )],
-            [InlineKeyboardButton(
+            ), InlineKeyboardButton(
                 f"{Messages.NOTIF_EMAILS} [{toggle_text(prefs.email_campaigns)}]",
                 callback_data=CallbackData.NOTIF_TOGGLE.format(type="emails")
             )],
+        
         ])
     
 

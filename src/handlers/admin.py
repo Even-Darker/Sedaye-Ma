@@ -277,34 +277,53 @@ async def receive_target_reasons(update: Update, context: ContextTypes.DEFAULT_T
     added_count = 0
     skipped_count = 0
     
-    async with get_db() as session:
-        for handle in handles:
-            # Double-check for duplicates
-            result = await session.execute(
-                select(InstagramTarget).where(InstagramTarget.ig_handle == handle)
-            )
-            if result.scalar_one_or_none():
-                skipped_count += 1
-                continue
+    try:
+        async with get_db() as session:
+            for handle in handles:
+                # Double-check for duplicates
+                result = await session.execute(
+                    select(InstagramTarget).where(InstagramTarget.ig_handle == handle)
+                )
+                if result.scalar_one_or_none():
+                    skipped_count += 1
+                    continue
+                
+                target = InstagramTarget(
+                    ig_handle=handle,
+                    report_reasons=reasons,
+                    priority=5,
+                    status=TargetStatus.ACTIVE
+                )
+                session.add(target)
+                added_count += 1
+                
+            # Let get_db handle the commit automatically
             
-            target = InstagramTarget(
-                ig_handle=handle,
-                report_reasons=reasons,
-                priority=5,
-                status=TargetStatus.ACTIVE
-            )
-            session.add(target)
-            added_count += 1
+    except Exception as e:
+        logger.error(f"Error saving targets: {e}", exc_info=True)
+        await update.message.reply_text("❌ خطا در ذخیره سازی دیتابیس")
+        return ConversationHandler.END
+
+    logger.info(f"Targets added: added={added_count}, skipped={skipped_count}")
+
+    # Trigger Notification if targets were added
+    if added_count > 0:
+        try:
+            from src.services.notification_service import NotificationService
+            await NotificationService(context.bot).broadcast_new_targets(added_count)
+            logger.info("Notification broadcast triggered successfully.")
             
-        await session.commit()
-    
+        except Exception as e:
+            logger.error(f"Failed to trigger broadcast: {e}", exc_info=True)
+
     # Build result message
     if added_count == 0 and skipped_count > 0:
         msg = f"⚠️ *همه {skipped_count} مورد قبلاً اضافه شده بودند*\\."
     else:
         dup_text = f"\n_({skipped_count} تکراری نادیده گرفته شد)_" if skipped_count > 0 else ""
         msg = (
-            f"✅ *{added_count} صفحه اضافه شد\\!*{dup_text}\n\n"
+            f"✅ *{added_count} صفحه اضافه شد\\!*{dup_text}\n"
+            f"🚀 *اعلان عمومی برای کاربران ارسال شد\\!*\n\n"
             f"📄 دلایل: {Formatters.escape_markdown(', '.join(reasons))}\n"
         )
         
@@ -1013,13 +1032,30 @@ async def approve_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         target = result.scalar_one_or_none()
         
+    target_approved = False
+    
+    async with get_db() as session:
+        result = await session.execute(
+            select(InstagramTarget).where(InstagramTarget.id == target_id)
+        )
+        target = result.scalar_one_or_none()
+        
         if not target:
             await query.answer("❌ صفحه یافت نشد", show_alert=True)
             return
         
         target.status = TargetStatus.ACTIVE
-        await session.commit()
+        target_approved = True
+        # Let get_db handles match
         
+    if target_approved:
+        # Broadcast notification (Outside DB session)
+        try:
+            from src.services.notification_service import NotificationService
+            await NotificationService(context.bot).broadcast_new_targets(1)
+        except Exception as e:
+            logger.error(f"Failed to broadcast approval: {e}")
+            
         await query.answer("✅ صفحه تأیید شد و به لیست فعال اضافه شد")
         await show_pending_targets(update, context)
 

@@ -215,6 +215,14 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     ANNOUNCEMENT_ACTION = "✊ فراخوان"
     ANNOUNCEMENT_SAFETY = "🔒 امنیتی"
     
+    NEW_TARGET_ALERT = """
+🚨🚨🚨 *هشدار\\! {count} ساندیس‌خور جدید اضافه شد\\!*
+
+📌 *یادتان باشد\\! همبستگی، راه موفقیت ماست\\!*
+
+👇 برای شروع ریپورت دکمه زیر را بزنید:
+"""
+
     SHARE_BUTTON = "📤 اشتراک‌گذاری"
     
     # ═══════════════════════════════════════════════════════════════
@@ -302,6 +310,7 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     NOTIF_URGENT = "⚡ اطلاعیه‌های فوری"
     NOTIF_NEWS = "📰 اخبار"
     NOTIF_VICTORIES = "🏆 پیروزی‌ها"
+    NOTIF_TARGETS = "🎯 معرفی ساندیس‌خور جدید"
     NOTIF_PETITIONS = "📝 پتیشن‌ها"
     NOTIF_EMAILS = "✉️ کمپین‌های ایمیلی"
     
