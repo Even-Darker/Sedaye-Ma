@@ -6,9 +6,9 @@
 
 <div align="center">
 
-# 🦁 [شروع ربات](https://t.me/Sedaye_ma_bot) 🔊
-### همین الان به جنبش بپیوندید! 👇
-**[t.me/Sedaye_ma_bot](https://t.me/Sedaye_ma_bot)**
+<h1>🦁 <a href="https://t.me/Sedaye_ma_bot">شروع ربات</a> 🔊</h1>
+<h3>همین الان به جنبش بپیوندید! 👇</h3>
+<p><strong><a href="https://t.me/Sedaye_ma_bot">t.me/Sedaye_ma_bot</a></strong></p>
 
 </div>
 
