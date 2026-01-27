@@ -1,8 +1,10 @@
-# 🦁☀️ Sedaye Ma (Our Voice)
+# 🦁🔊 Sedaye Ma (Voice of Us)
 
 > **Coordinating collective action against online violations.**
 
 [English](README.md) | [فارسی](README_fa.md)
+
+**🤖 Official Bot:** [t.me/Sedaye_ma_bot](https://t.me/Sedaye_ma_bot)
 
 Sedaye Ma is a Telegram bot designed to help communities organize and report violations on social media platforms (focusing on Instagram). It facilitates the reporting of harmful content such as violence, misinformation, propaganda, and harassment.
 
