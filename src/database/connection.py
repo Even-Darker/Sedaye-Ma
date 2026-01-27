@@ -161,4 +161,5 @@ async def check_migrations():
                 await conn.execute(text("ALTER TABLE free_configs ADD COLUMN report_count INTEGER DEFAULT 0"))
             logger.info("Migration: Done.")
         else:
-            logger.info("Migration: No changes needed.")
+            logger.info("Migration: No changes needed for free_configs.")
+

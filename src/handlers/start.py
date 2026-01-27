@@ -38,18 +38,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle start button click - show main menu."""
+    """Handle start button click - just delete the message since persistent keyboard is available."""
     query = update.callback_query
     await query.answer()
-    
-    user_id = update.effective_user.id
-    is_admin = await is_user_admin(user_id)
-    
-    await query.edit_message_text(
-        Messages.MAIN_MENU_HEADER,
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.main_menu(is_admin=is_admin)
-    )
+    await query.delete_message()
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -18,6 +18,7 @@ class CallbackData:
     MENU_SOLIDARITY = "menu:solidarity"
     MENU_RESOURCES = "menu:resources"
     MENU_SETTINGS = "menu:settings"
+    MENU_EMAILS = "menu:emails"
     
     # Navigation
     BACK_MAIN = "nav:main"
@@ -125,6 +126,19 @@ class CallbackData:
     CONFIGS_PAGE = "configs:page:{page}"
     CONFIG_REPORT = "config:report:{id}"
     CONFIG_COPY = "config:copy:{id}"
+    
+    # Email Campaigns
+    EMAILS_PAGE = "emails:page:{page}"
+    EMAIL_VIEW = "email:view:{id}"
+    EMAIL_ACTION_DONE = "email:done:{id}:{page}"
+    EMAIL_OPEN = "email:open:{id}"
+    EMAILS_FILTER_NEW = "emails:filter:new"
+    EMAILS_FILTER_DONE = "emails:filter:done"
+    
+    ADMIN_ADD_EMAIL = "admin:add_email"
+    ADMIN_MANAGE_EMAILS = "admin:manage_emails"
+    ADMIN_DELETE_EMAIL = "admin:delete_email:{id}"
+    ADMIN_VIEW_EMAIL = "admin:email:view:{id}"
 
 
 
@@ -151,6 +165,7 @@ class Keyboards:
             # [InlineKeyboardButton(Messages.MENU_SOLIDARITY, callback_data=CallbackData.MENU_SOLIDARITY)],
             # [InlineKeyboardButton(Messages.MENU_RESOURCES, callback_data=CallbackData.MENU_RESOURCES)],
             [InlineKeyboardButton(Messages.MENU_SETTINGS, callback_data=CallbackData.MENU_SETTINGS)],
+            [InlineKeyboardButton(Messages.MENU_EMAILS, callback_data=CallbackData.MENU_EMAILS)],
         ]
         # Admin only: show admin panel button
         if is_admin:
@@ -165,7 +180,8 @@ class Keyboards:
             [KeyboardButton(Messages.MENU_ANNOUNCEMENTS), KeyboardButton(Messages.MENU_PETITIONS)],
             #TODO: Add solidarity menu
             # [KeyboardButton(Messages.MENU_SOLIDARITY)],
-            [KeyboardButton(Messages.MENU_FREE_CONFIGS), KeyboardButton(Messages.MENU_SETTINGS)]
+            [KeyboardButton(Messages.MENU_EMAILS), KeyboardButton(Messages.MENU_FREE_CONFIGS)],
+            [KeyboardButton(Messages.MENU_SETTINGS)]
         ]
         
         if is_admin:
@@ -460,6 +476,9 @@ class Keyboards:
                 InlineKeyboardButton("📡 مدیریت کانفیگ‌ها", callback_data=CallbackData.ADMIN_MANAGE_CONFIGS),
                 InlineKeyboardButton("➕ افزودن کانفیگ", callback_data=CallbackData.ADMIN_ADD_CONFIG),
             ],
+            [
+                InlineKeyboardButton(Messages.ADMIN_MANAGE_EMAILS_BTN, callback_data=CallbackData.ADMIN_MANAGE_EMAILS),
+            ],
         ]
         
         if is_super_admin:
@@ -577,4 +596,88 @@ class Keyboards:
             [InlineKeyboardButton("🏆 صفحه بسته شده", callback_data=CallbackData.TARGET_CONCERN_CLOSED.format(id=target_id))],
             [InlineKeyboardButton("💬 موارد دیگر", callback_data=CallbackData.TARGET_CONCERN_OTHER.format(id=target_id))],
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.TARGETS_LIST)], 
+        ])
+
+    @staticmethod
+    def email_campaigns_list(campaigns: list, page: int = 0, total_pages: int = 1, completed_ids: set = None, filter_mode: str = "new") -> InlineKeyboardMarkup:
+        """List of email campaigns with pagination and completion badges."""
+        if completed_ids is None:
+            completed_ids = set()
+            
+        buttons = []
+        
+        # Filter tabs
+        new_label = "🆕 جدید" if filter_mode != "new" else "🆕 جدید ✓"
+        done_label = "✅ انجام شده" if filter_mode != "done" else "✅ انجام شده ✓"
+        buttons.append([
+            InlineKeyboardButton(new_label, callback_data=CallbackData.EMAILS_FILTER_NEW),
+            InlineKeyboardButton(done_label, callback_data=CallbackData.EMAILS_FILTER_DONE),
+        ])
+        
+        for campaign in campaigns:
+            # Add checkmark prefix if completed
+            prefix = "✅ " if campaign.id in completed_ids else ""
+            buttons.append([
+                InlineKeyboardButton(
+                    f"{prefix}📧 {campaign.title}",
+                    callback_data=CallbackData.EMAIL_VIEW.format(id=campaign.id)
+                )
+            ])
+            
+        # Pagination
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=CallbackData.EMAILS_PAGE.format(page=page-1)))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=CallbackData.EMAILS_PAGE.format(page=page+1)))
+        if nav_buttons:
+            buttons.append(nav_buttons)
+            
+        # No back button - user uses persistent keyboard
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def email_campaign_action(campaign_id: int, mailto_link: str, already_done: bool = False) -> InlineKeyboardMarkup:
+        """Actions for a specific email campaign."""
+        buttons = [
+            [InlineKeyboardButton(Messages.EMAIL_SEND_BTN, url=mailto_link)],
+        ]
+        
+        if already_done:
+            buttons.append([InlineKeyboardButton("✅ قبلاً انجام دادید", callback_data="noop")])
+        else:
+            buttons.append([InlineKeyboardButton(Messages.EMAIL_DONE_BTN, callback_data=CallbackData.EMAIL_ACTION_DONE.format(id=campaign_id))])
+        
+        buttons.append([InlineKeyboardButton("🔙 بازگشت به لیست", callback_data=CallbackData.MENU_EMAILS)])
+        return InlineKeyboardMarkup(buttons)
+    
+    @staticmethod
+    def admin_emails_list(campaigns: list, page: int = 0, total_pages: int = 1) -> InlineKeyboardMarkup:
+        """Admin list of campaigns to manage with pagination."""
+        buttons = []
+        for campaign in campaigns:
+            buttons.append([
+                InlineKeyboardButton(f"📄 {campaign.title[:20]}", callback_data=CallbackData.ADMIN_VIEW_EMAIL.format(id=campaign.id))
+            ])
+            
+        # Pagination
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️ قبلی", callback_data=f"{CallbackData.ADMIN_MANAGE_EMAILS}:{page-1}"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("بعدی ➡️", callback_data=f"{CallbackData.ADMIN_MANAGE_EMAILS}:{page+1}"))
+            
+        if nav_buttons:
+            buttons.append(nav_buttons)
+            
+        buttons.append([InlineKeyboardButton(Messages.ADMIN_ADD_EMAIL_BTN, callback_data=CallbackData.ADMIN_ADD_EMAIL)])
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_PANEL)])
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def admin_email_view_actions(campaign_id: int) -> InlineKeyboardMarkup:
+        """Actions for viewing an email in admin panel (Delete, Back)."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ حذف کمپین", callback_data=CallbackData.ADMIN_DELETE_EMAIL.format(id=campaign_id))],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_MANAGE_EMAILS)]
         ])

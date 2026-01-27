@@ -33,6 +33,7 @@ from src.handlers import (
     suggest_handlers,
     report_removal_conversation,
     text_menu_handler,
+    email_campaign_handlers,
 )
 
 
@@ -143,6 +144,10 @@ def main():
     application.add_handler(CallbackQueryHandler(manage_petitions, pattern=r"^admin:petitions$")) # Alias for first page
     application.add_handler(CallbackQueryHandler(manage_petitions, pattern=r"^admin:petitions$")) # Alias for first page
     application.add_handler(MessageHandler(filters.Regex(r"^/delete_petition_\d+$"), delete_petition_command))
+
+    # Email Campaigns
+    for handler in email_campaign_handlers:
+        application.add_handler(handler)
 
     # Admin handlers (must be last to not interfere with conversations)
     for handler in admin_handlers:

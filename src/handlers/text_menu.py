@@ -49,6 +49,10 @@ async def handle_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     elif text == Messages.MENU_SETTINGS:
         await settings.show_settings(update, context)
+    
+    elif text == Messages.MENU_EMAILS:
+        from src.handlers import email_campaigns
+        await email_campaigns.list_email_campaigns_text(update, context)
         
     elif text == Messages.ADMIN_HEADER:
         # Let the admin_panel handler decide access (it has @admin_required)
