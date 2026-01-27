@@ -22,6 +22,8 @@ class Formatters:
     @staticmethod
     def escape_markdown(text: str) -> str:
         """Escape special characters for Telegram MarkdownV2."""
+        # 'escape' backslash first so we don't escape the escapes
+        text = text.replace('\\', '\\\\')
         special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
         for char in special_chars:
             text = text.replace(char, f'\\{char}')

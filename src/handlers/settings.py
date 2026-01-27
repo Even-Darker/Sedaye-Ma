@@ -85,6 +85,8 @@ async def toggle_notification(update: Update, context: ContextTypes.DEFAULT_TYPE
             prefs.victories = not prefs.victories
         elif notif_type == "petitions":
             prefs.petitions = not prefs.petitions
+        elif notif_type == "emails":
+            prefs.email_campaigns = not prefs.email_campaigns
         
         await session.commit()
         

@@ -114,6 +114,50 @@ class NotificationService:
             
             return sent_count
             
+    async def broadcast_email_campaign(self, campaign):
+        """Broadcast a new email campaign to opted-in users."""
+        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+        from src.utils.keyboards import Keyboards, CallbackData
+        
+        async with get_db() as session:
+            result = await session.execute(
+                select(NotificationPreference)
+                .where(NotificationPreference.email_campaigns == True)
+            )
+            subscribers = result.scalars().all()
+            
+            title = Formatters.escape_markdown(campaign.title)
+            desc = Formatters.escape_markdown(campaign.description[:200])
+            email = Formatters.escape_markdown(campaign.receiver_email)
+            
+            message = (
+                f"{Messages.EMAILS_HEADER}\n\n"
+                f"🚨 *کمپین جدید: {title}*\n\n"
+                f"{desc}\\.\\.\\.\n\n"
+                f"🎯 هدف: `{email}`"
+            )
+            
+            # Simple keyboard to go to emails page
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton(Messages.EMAIL_SEND_BTN, callback_data=CallbackData.MENU_EMAILS)]
+            ])
+            
+            sent_count = 0
+            for pref in subscribers:
+                try:
+                    await self.bot.send_message(
+                        chat_id=pref.chat_id,
+                        text=message,
+                        parse_mode="MarkdownV2",
+                        reply_markup=keyboard
+                    )
+                    logger.info(f"Successfully sent email notification to {pref.chat_id}")
+                    sent_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to send email notification to {pref.chat_id}: {e}")
+            
+            return sent_count
+
     async def notify_admins_new_submission(self, count: int, handles: List[str]):
         """Notify all admins about new pending submissions."""
         from src.database.models import Admin

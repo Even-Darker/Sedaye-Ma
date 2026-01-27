@@ -276,6 +276,7 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     NOTIF_NEWS = "📰 اخبار"
     NOTIF_VICTORIES = "🏆 پیروزی‌ها"
     NOTIF_PETITIONS = "📝 پتیشن‌ها"
+    NOTIF_EMAILS = "✉️ کمپین‌های ایمیلی"
     
     NOTIF_ENABLED = "✓ فعال"
     NOTIF_DISABLED = "○ غیرفعال"
@@ -297,7 +298,7 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
     ADMIN_SOLIDARITY = "💬 تأیید پیام‌ها"
     ADMIN_MANAGE_ADMINS = "👥 مدیریت ادمین‌ها"
     ADMIN_STATS = "📊 آمار"
-    ADMIN_MANAGE_EMAILS_BTN = "📧 مدیریت ایمیل‌ها"
+    ADMIN_MANAGE_EMAILS_BTN = "🚀✉️ مدیریت ایمیل‌ها"
     ADMIN_ADD_EMAIL_BTN = "➕ افزودن ایمیل"
     
     # ═══════════════════════════════════════════════════════════════
