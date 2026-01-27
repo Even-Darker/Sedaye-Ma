@@ -27,6 +27,17 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     is_admin = await is_user_admin(user_id)
     
+    # Ensure user is registered for notifications
+    from src.database import NotificationPreference
+    async with get_db() as session:
+        result = await session.execute(
+            select(NotificationPreference).where(NotificationPreference.chat_id == user_id)
+        )
+        if not result.scalar_one_or_none():
+            prefs = NotificationPreference(chat_id=user_id)
+            session.add(prefs)
+            await session.commit()
+    
     await update.message.reply_text(
         Messages.WELCOME,
         parse_mode="MarkdownV2",

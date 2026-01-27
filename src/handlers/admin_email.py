@@ -186,6 +186,12 @@ async def receive_email_body(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         session.add(campaign)
         await session.commit()
+        await session.refresh(campaign)
+
+    # Broadcast Notification
+    from src.services.notification_service import NotificationService
+    service = NotificationService(context.bot)
+    await service.broadcast_email_campaign(campaign)
         
     await update.message.reply_text(
         "✅ *کمپین ایمیلی با موفقیت ایجاد شد\!*",

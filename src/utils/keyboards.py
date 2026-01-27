@@ -429,6 +429,10 @@ class Keyboards:
                 f"{Messages.NOTIF_PETITIONS} [{toggle_text(prefs.petitions)}]",
                 callback_data=CallbackData.NOTIF_TOGGLE.format(type="petitions")
             )],
+            [InlineKeyboardButton(
+                f"{Messages.NOTIF_EMAILS} [{toggle_text(prefs.email_campaigns)}]",
+                callback_data=CallbackData.NOTIF_TOGGLE.format(type="emails")
+            )],
         ])
     
 
@@ -450,14 +454,11 @@ class Keyboards:
             [
                 InlineKeyboardButton(f"📄 گزارش‌ها و پیام‌ها{reports_badge}", callback_data=CallbackData.ADMIN_REPORTS),
             ],
-            [InlineKeyboardButton(Messages.ADMIN_ANNOUNCEMENTS, callback_data=CallbackData.ADMIN_ANNOUNCEMENTS)],
-            [InlineKeyboardButton(Messages.ADMIN_PETITIONS, callback_data=CallbackData.ADMIN_PETITIONS)],
+            # [InlineKeyboardButton(Messages.ADMIN_ANNOUNCEMENTS, callback_data=CallbackData.ADMIN_ANNOUNCEMENTS)],
+            [InlineKeyboardButton(Messages.ADMIN_MANAGE_EMAILS_BTN, callback_data=CallbackData.ADMIN_MANAGE_EMAILS), InlineKeyboardButton(Messages.ADMIN_PETITIONS, callback_data=CallbackData.ADMIN_PETITIONS),],
             [
                 InlineKeyboardButton("📡 مدیریت کانفیگ‌ها", callback_data=CallbackData.ADMIN_MANAGE_CONFIGS),
                 InlineKeyboardButton("➕ افزودن کانفیگ", callback_data=CallbackData.ADMIN_ADD_CONFIG),
-            ],
-            [
-                InlineKeyboardButton(Messages.ADMIN_MANAGE_EMAILS_BTN, callback_data=CallbackData.ADMIN_MANAGE_EMAILS),
             ],
         ]
         

@@ -162,4 +162,14 @@ async def check_migrations():
             logger.info("Migration: Done.")
         else:
             logger.info("Migration: No changes needed for free_configs.")
+            
+        # Check if notification_preferences.email_campaigns exists
+        try:
+            await session.execute(text("SELECT email_campaigns FROM notification_preferences LIMIT 1"))
+        except Exception:
+            logger.info("Migration: Adding email_campaigns to notification_preferences...")
+            await session.rollback()
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE notification_preferences ADD COLUMN email_campaigns BOOLEAN DEFAULT 1"))
+            logger.info("Migration: Added email_campaigns.")
 

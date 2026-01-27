@@ -301,6 +301,7 @@ class NotificationPreference(Base):
     announcements_news = Column(Boolean, default=True)
     victories = Column(Boolean, default=True)
     petitions = Column(Boolean, default=True)
+    email_campaigns = Column(Boolean, default=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
