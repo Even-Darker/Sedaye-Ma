@@ -7,6 +7,9 @@
 <div align="center">
 
 # 🦁 [Start the Bot](https://t.me/Sedaye_ma_bot) 🔊
+
+<img src=".github/assets/profile.jpg" width="200" alt="Sedaye Ma Profile">
+
 ### Join the movement now! 👇
 **[t.me/Sedaye_ma_bot](https://t.me/Sedaye_ma_bot)**
 

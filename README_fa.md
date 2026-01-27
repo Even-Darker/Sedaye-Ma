@@ -7,6 +7,9 @@
 <div align="center">
 
 <h1>🦁 <a href="https://t.me/Sedaye_ma_bot">شروع ربات</a> 🔊</h1>
+
+<img src=".github/assets/profile.jpg" width="200" alt="Sedaye Ma Profile">
+
 <h3>همین الان به جنبش بپیوندید! 👇</h3>
 <p><strong><a href="https://t.me/Sedaye_ma_bot">t.me/Sedaye_ma_bot</a></strong></p>
 
