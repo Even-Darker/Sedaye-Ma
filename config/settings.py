@@ -42,8 +42,7 @@ class Settings:
                 try:
                     super_admin_ids.append(int(id_str))
                 except ValueError:
-                    print(f"⚠️  Warning: '{id_str}' is not a valid Telegram user ID (must be numeric)")
-                    print("   Get your ID by messaging @userinfobot on Telegram")
+                    raise ValueError(f"Invalid Admin ID in format: '{id_str}'. Must be an integer.")
         
         return cls(
             bot_token=os.getenv('TELEGRAM_BOT_TOKEN', ''),

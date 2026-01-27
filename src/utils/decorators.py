@@ -162,7 +162,9 @@ def rate_limit(limit: int, window: int, penalty_time: int = 3600):
                     # Silent is better for security, but a generic warning helps normal users.
                     # We'll stop propagation immediately.
                     # Optional: Log it
-                    print(f"RATE LIMIT: User {user_id} banned for {penalty_time}s")
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"RATE LIMIT: User {user_id} banned for {penalty_time}s")
                     pass
                 elif reason == "banned":
                     # Already banned, ignore completely
