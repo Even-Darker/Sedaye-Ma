@@ -147,35 +147,6 @@ async def view_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def show_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show support resources."""
-    query = update.callback_query
-    await query.answer()
-    
-    guide = """
-🆘 *منابع حمایتی*
-
-*حقوق بشر:*
-🔗 Amnesty International Iran
-🔗 Human Rights Watch
-🔗 Iran Human Rights
-
-*حقوقی:*
-🔗 Center for Human Rights in Iran
-🔗 Miaan Group
-
-*روانی:*
-🔗 منابع بهداشت روان به زودی اضافه می‌شود
-
-💚 شما تنها نیستید\\. ما با هم هستیم\\.
-"""
-    
-    await query.edit_message_text(
-        guide,
-        parse_mode="MarkdownV2",
-        reply_markup=Keyboards.back_to_main()
-    )
-
 
 # Export handlers
 resources_handlers = [
@@ -184,5 +155,4 @@ resources_handlers = [
     CallbackQueryHandler(show_safety_guide, pattern=f"^{CallbackData.RESOURCE_SAFETY}$"),
     CallbackQueryHandler(show_templates_list, pattern=f"^{CallbackData.RESOURCE_TEMPLATES}$"),
     CallbackQueryHandler(view_template, pattern=r"^template:view:\w+$"),
-    CallbackQueryHandler(show_support, pattern=f"^{CallbackData.RESOURCE_SUPPORT}$"),
 ]

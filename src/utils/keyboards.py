@@ -388,7 +388,6 @@ class Keyboards:
             [InlineKeyboardButton(Messages.GUIDE_REPORT_IG, callback_data=CallbackData.RESOURCE_REPORT_IG)],
             [InlineKeyboardButton(Messages.GUIDE_SAFETY, callback_data=CallbackData.RESOURCE_SAFETY)],
             [InlineKeyboardButton(Messages.GUIDE_TEMPLATES, callback_data=CallbackData.RESOURCE_TEMPLATES)],
-            [InlineKeyboardButton(Messages.GUIDE_SUPPORT, callback_data=CallbackData.RESOURCE_SUPPORT)],
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_MAIN)]
         ])
     

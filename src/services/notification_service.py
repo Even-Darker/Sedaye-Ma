@@ -10,6 +10,9 @@ from src.database import get_db, NotificationPreference, Announcement, Victory, 
 from src.database.models import AnnouncementCategory
 from src.utils.formatters import Formatters
 from config import Messages
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationService:
@@ -107,8 +110,6 @@ class NotificationService:
                     )
                     sent_count += 1
                 except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
                     logger.error(f"Failed to send petition notification to {pref.chat_id}: {e}")
                     pass
             
@@ -205,8 +206,6 @@ class NotificationService:
         """
         Notify all admins about a removal request (Submit Victory).
         """
-        import logging
-        logger = logging.getLogger(__name__)
         
         from src.database.models import Admin
         from telegram import InlineKeyboardMarkup, InlineKeyboardButton
