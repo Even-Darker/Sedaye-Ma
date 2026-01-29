@@ -119,5 +119,24 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📅 _تاریخ گزارش: {esc(now.strftime('%Y-%m-%d %H:%M'))}_"
     )
 
+    # --- Shareable Version (without backticks/complex formatting for external apps) ---
+    share_msg = (
+        "🛡 *پیشخوان آماری صدای ما*\n\n"
+        "👥 *ارتش مردمی*\n"
+        f"• تعداد کل: {total_users:,}\n"
+        f"• فعال (۲۴ ساعت): {dau:,}\n"
+        f"• فعال (۷ روز): {wau:,}\n\n"
+        "⚔️ *تاثیرگذاری*\n"
+        f"• پیروزی‌ها: {victories:,} 🏆\n"
+        f"• ضربات گزارش: {total_strikes:,} 💥\n"
+        f"• ساندیسی فعال: {active_targets:,} 🧃\n\n"
+        "✌️ برای پیوستن به ارتش صدای ما:\n"
+        "🔗 @Sedaye_Ma_Bot"
+    )
+
     # Use reply_text for /stat command
-    await update.message.reply_text(msg, parse_mode="MarkdownV2")
+    await update.message.reply_text(
+        msg, 
+        parse_mode="MarkdownV2",
+        reply_markup=Keyboards.stats_share_menu(share_msg)
+    )

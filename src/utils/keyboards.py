@@ -3,6 +3,7 @@ Telegram keyboard builders for Sedaye Ma bot.
 All keyboards are defined here for consistency.
 """
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo, KeyboardButtonRequestUsers, ReplyKeyboardRemove
+from urllib.parse import quote
 from config import Messages
 
 
@@ -693,3 +694,17 @@ class Keyboards:
             resize_keyboard=True,
             one_time_keyboard=True
         )
+
+    @staticmethod
+    def stats_share_menu(share_text: str) -> InlineKeyboardMarkup:
+        """Menu for sharing stats to Telegram and X."""
+        encoded_text = quote(share_text)
+        tg_url = f"https://t.me/share/url?text={encoded_text}"
+        x_url = f"https://x.com/intent/tweet?text={encoded_text}"
+        
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📤 اشتراک در تلگرام", url=tg_url),
+                InlineKeyboardButton("𝕏 اشتراک در X", url=x_url)
+            ]
+        ])
