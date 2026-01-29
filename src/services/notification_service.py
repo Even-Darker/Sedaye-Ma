@@ -80,7 +80,7 @@ class NotificationService:
             message = f"""
 🏆🎉 *پیروزی جدید\\!* 🎉🏆
 
-@{Formatters.escape_markdown(target.ig_handle)} حذف شد\\!
+[@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle}) حذف شد\\!
 
 📊 {victory.final_report_count} گزارش از جامعه
 
