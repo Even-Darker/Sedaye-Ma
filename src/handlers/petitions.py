@@ -131,10 +131,86 @@ async def sign_petition(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Tracking logic removed as we use direct URL buttons now
 
 
+async def handle_petition_share_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show sharing options for a petition."""
+    query = update.callback_query
+    await query.answer()
+    
+    parts = query.data.split(":")
+    petition_id = int(parts[2])
+    offset = int(parts[3])
+    
+    async with get_db() as session:
+        result = await session.execute(select(Petition).where(Petition.id == petition_id))
+        petition = result.scalar_one_or_none()
+        
+        if not petition:
+            return
+            
+        share_text = Formatters.format_petition_share(petition)
+        
+        await query.edit_message_text(
+            f"📤 *اشتراک‌گذاری پتیشن*\n\n{Formatters.escape_markdown(petition.title)}\n\n"
+            "پلتفرم مورد نظر را برای اشتراک‌گذاری انتخاب کنید:",
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.petition_share_menu(petition.title, petition.url, share_text, petition.id, offset)
+        )
+
+
+async def handle_petition_share_ig(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show instructions for sharing on IG Story."""
+    query = update.callback_query
+    await query.answer()
+    
+    petition_id = int(query.data.split(":")[-1])
+    
+    async with get_db() as session:
+        result = await session.execute(select(Petition).where(Petition.id == petition_id))
+        petition = result.scalar_one_or_none()
+        
+        if not petition:
+            return
+            
+        share_text = Formatters.format_petition_share(petition)
+        
+        instructions = (
+            "📸 *آموزش اشتراک در استوری اینستاگرام*\n\n"
+            "۱\\. متن زیر را کپی کنید:\n\n"
+            f"```\n{share_text}\n```\n\n"
+            "۲\\. اپلیکیشن اینستاگرام را باز کنید\\.\n"
+            "۳\\. عکس یا ویدیوی مورد نظر را انتخاب کنید\\.\n"
+            "۴\\. از قسمت استیکرها، گزینه *LINK* را انتخاب کرده و لینک زیر را قرار دهید:\n"
+            f"🔗 `{petition.url}`\n\n"
+            "۵\\. متن کپی شده را به عنوان استیکر متنی یا کپشن اضافه کنید\\."
+        )
+        
+        # We send this as a new message so the user can easily copy and keep it open
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=instructions,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.back_to_main() # Or just let them be
+        )
+
+
+async def back_to_petition_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Go back to petition detail from share options."""
+    query = update.callback_query
+    await query.answer()
+    
+    parts = query.data.split(":")
+    offset = int(parts[-1])
+    
+    await render_petition_page(update, context, offset=offset)
+
+
 # Export handlers
 petitions_handlers = [
     CallbackQueryHandler(show_petitions, pattern=f"^{CallbackData.MENU_PETITIONS}$"),
     CallbackQueryHandler(navigate_petitions, pattern=r"^petition:nav:\d+$"),
     CallbackQueryHandler(view_petition, pattern=r"^petition:view:\d+$"),
     CallbackQueryHandler(sign_petition, pattern=r"^petition:sign:\d+$"),
+    CallbackQueryHandler(handle_petition_share_options, pattern=r"^petition:share_opt:\d+:\d+$"),
+    CallbackQueryHandler(handle_petition_share_ig, pattern=r"^petition:share_ig:\d+$"),
+    CallbackQueryHandler(back_to_petition_view, pattern=r"^petition:view_back:\d+:\d+$"),
 ]

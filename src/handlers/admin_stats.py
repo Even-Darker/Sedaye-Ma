@@ -100,7 +100,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• پیروزی‌ها: `{esc(f'{victories:,}')} 🏆`\n"
         f"• ضربات گزارش: `{esc(f'{total_strikes:,}')} 💥`\n"
         f"• درصد موفقیت: `{esc(f'{success_rate:.1f}')}%`\n"
-        f"•🧃  ساندیسی فعال: `{esc(f'{active_targets:,}')}`\n\n"
+        f"•🧃  ساندیس باقی مونده `{esc(f'{active_targets:,}')}`\n\n"
         
         "📣 *پتیشن‌ها*\n"
         f"• تعداد کل: `{esc(f'{total_petitions:,}')}`\n"
@@ -129,9 +129,9 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "⚔️ *تاثیرگذاری*\n"
         f"• پیروزی‌ها: {victories:,} 🏆\n"
         f"• ضربات گزارش: {total_strikes:,} 💥\n"
-        f"• ساندیسی فعال: {active_targets:,} 🧃\n\n"
-        "✌️ برای پیوستن به ارتش صدای ما:\n"
-        "🔗 @Sedaye_Ma_Bot"
+        f"• ساندیس باقی مونده {active_targets:,} 🧃\n\n"
+        "✌️ برای پیوستن به ارتش مردمی صدای ما:\n"
+        "🔗 https://t.me/Sedaye_Ma_Bot"
     )
 
     # Use reply_text for /stat command

@@ -71,6 +71,8 @@ class CallbackData:
     PETITION_SIGN = "petition:sign:{id}"
     PETITION_NAV = "petition:nav:{offset}"
     PETITIONS_PAGE = "petitions:page:{page}"
+    PETITION_SHARE_OPT = "petition:share_opt:{id}:{offset}"
+    PETITION_SHARE_IG = "petition:share_ig:{id}"
     
     # Solidarity
     SOLIDARITY_WRITE = "solidarity:write"
@@ -355,7 +357,7 @@ class Keyboards:
         buttons = []
 
         buttons.append([
-            InlineKeyboardButton(Messages.SHARE_BUTTON, switch_inline_query=f"petition_{petition_id}"),
+            InlineKeyboardButton(Messages.SHARE_BUTTON, callback_data=CallbackData.PETITION_SHARE_OPT.format(id=petition_id, offset=offset)),
             InlineKeyboardButton(Messages.SIGN_PETITION, url=url),
         ])
         
@@ -694,6 +696,26 @@ class Keyboards:
             resize_keyboard=True,
             one_time_keyboard=True
         )
+
+    @staticmethod
+    def petition_share_menu(petition_name: str, petition_url: str, share_text: str, petition_id: int, offset: int) -> InlineKeyboardMarkup:
+        """Menu for sharing petitions to Telegram, X and IG Story."""
+        encoded_text = quote(share_text)
+        tg_url = f"https://t.me/share/url?text={encoded_text}"
+        x_url = f"https://x.com/intent/tweet?text={encoded_text}"
+        
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📤 تلگرام", url=tg_url),
+                InlineKeyboardButton("𝕏 اشتراک در X", url=x_url)
+            ],
+            [
+                InlineKeyboardButton("📸 استوری اینستاگرام", callback_data=CallbackData.PETITION_SHARE_IG.format(id=petition_id))
+            ],
+            [
+                InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=f"petition:view_back:{petition_id}:{offset}")
+            ]
+        ])
 
     @staticmethod
     def stats_share_menu(share_text: str) -> InlineKeyboardMarkup:

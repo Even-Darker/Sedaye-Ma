@@ -193,3 +193,15 @@ class Formatters:
 
 📝 توضیحات: {Formatters.escape_markdown(petition.description)}
 """
+
+    @staticmethod
+    def format_petition_share(petition) -> str:
+        """Format a petition for social media sharing."""
+        return f"""🦁 صدای ما! 🦁
+
+📝 پتیشن: {petition.title}
+
+🔗 {petition.url}
+
+✨ به ربات صدای ما بپیوندید تا با هم قوی‌تر شویم و اقدامات جمعی انجام دهیم! 🤝☀️
+🔗 https://t.me/Sedaye_Ma_Bot"""
