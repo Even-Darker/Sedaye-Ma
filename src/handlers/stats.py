@@ -70,7 +70,6 @@ async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'active_targets': active_targets,
             'removed_targets': removed_targets,
             'total_reports': total_reports,
-            'followers_silenced': followers_silenced,
             'weekly_increase_percent': 23,  # Would need historical data
             'weekly_removals': weekly_removals,
         }
