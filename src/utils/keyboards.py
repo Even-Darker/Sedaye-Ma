@@ -2,7 +2,8 @@
 Telegram keyboard builders for Sedaye Ma bot.
 All keyboards are defined here for consistency.
 """
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo, KeyboardButtonRequestUsers, ReplyKeyboardRemove
+from urllib.parse import quote
 from config import Messages
 
 
@@ -70,6 +71,8 @@ class CallbackData:
     PETITION_SIGN = "petition:sign:{id}"
     PETITION_NAV = "petition:nav:{offset}"
     PETITIONS_PAGE = "petitions:page:{page}"
+    PETITION_SHARE_OPT = "petition:share_opt:{id}:{offset}"
+    PETITION_SHARE_IG = "petition:share_ig:{id}"
     
     # Solidarity
     SOLIDARITY_WRITE = "solidarity:write"
@@ -354,7 +357,7 @@ class Keyboards:
         buttons = []
 
         buttons.append([
-            InlineKeyboardButton(Messages.SHARE_BUTTON, switch_inline_query=f"petition_{petition_id}"),
+            InlineKeyboardButton(Messages.SHARE_BUTTON, callback_data=CallbackData.PETITION_SHARE_OPT.format(id=petition_id, offset=offset)),
             InlineKeyboardButton(Messages.SIGN_PETITION, url=url),
         ])
         
@@ -453,7 +456,7 @@ class Keyboards:
             #     InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)
             # ],
             [
-                InlineKeyboardButton(f"{Messages.ADMIN_PENDING_TARGETS}{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)
+                InlineKeyboardButton(f"{Messages.ADMIN_MANAGE_TARGETS}{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)
             ],
             [
                 InlineKeyboardButton(f"📄 گزارش‌ها و پیام‌ها{reports_badge}", callback_data=CallbackData.ADMIN_REPORTS),
@@ -533,9 +536,11 @@ class Keyboards:
         """List of admins with remove buttons."""
         buttons = []
         for admin in admins:
+            from src.utils.security import decrypt_id
+            decrypted = decrypt_id(admin.encrypted_telegram_id)
             buttons.append([
                 InlineKeyboardButton(
-                    f"❌ {admin.telegram_id} ({admin.role.value})",
+                    f"❌ {decrypted} ({admin.role.value})",
                     callback_data=CallbackData.ADMIN_REMOVE_ADMIN.format(id=admin.id)
                 )
             ])
@@ -575,13 +580,17 @@ class Keyboards:
         ])
 
     @staticmethod
-    def concern_menu(target_id: int) -> InlineKeyboardMarkup:
+    def concern_menu(target_id: int, is_admin: bool = False) -> InlineKeyboardMarkup:
         """Menu for choosing concern type."""
-        return InlineKeyboardMarkup([
+        buttons = [
             [InlineKeyboardButton("🏆 صفحه بسته شده", callback_data=CallbackData.TARGET_CONCERN_CLOSED.format(id=target_id))],
-            [InlineKeyboardButton("💬 موارد دیگر", callback_data=CallbackData.TARGET_CONCERN_OTHER.format(id=target_id))],
-            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.TARGETS_LIST)], 
-        ])
+        ]
+        
+        if not is_admin:
+            buttons.append([InlineKeyboardButton("💬 موارد دیگر", callback_data=CallbackData.TARGET_CONCERN_OTHER.format(id=target_id))])
+            
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.TARGETS_LIST)])
+        return InlineKeyboardMarkup(buttons)
 
     @staticmethod
     def email_campaigns_list(campaigns: list, page: int = 0, total_pages: int = 1, completed_ids: set = None, filter_mode: str = "new") -> InlineKeyboardMarkup:
@@ -665,4 +674,59 @@ class Keyboards:
         return InlineKeyboardMarkup([
             [InlineKeyboardButton("❌ حذف کمپین", callback_data=CallbackData.ADMIN_DELETE_EMAIL.format(id=campaign_id))],
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_MANAGE_EMAILS)]
+        ])
+    
+    @staticmethod
+    def request_admin_user() -> ReplyKeyboardMarkup:
+        """Keyboard to request a single user for admin promotion."""
+        return ReplyKeyboardMarkup(
+            [
+                [
+                    KeyboardButton(
+                        "👤 انتخاب کاربر برای ادمین",
+                        request_users=KeyboardButtonRequestUsers(
+                            request_id=1,
+                            user_is_bot=False,
+                            max_quantity=1
+                        )
+                    )
+                ],
+                [KeyboardButton(Messages.CANCEL_ACTION)]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+
+    @staticmethod
+    def petition_share_menu(petition_name: str, petition_url: str, share_text: str, petition_id: int, offset: int) -> InlineKeyboardMarkup:
+        """Menu for sharing petitions to Telegram, X and IG Story."""
+        encoded_text = quote(share_text)
+        tg_url = f"https://t.me/share/url?text={encoded_text}"
+        x_url = f"https://x.com/intent/tweet?text={encoded_text}"
+        
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📤 تلگرام", url=tg_url),
+                InlineKeyboardButton("𝕏 اشتراک در X", url=x_url)
+            ],
+            [
+                InlineKeyboardButton("📸 استوری اینستاگرام", callback_data=CallbackData.PETITION_SHARE_IG.format(id=petition_id))
+            ],
+            [
+                InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=f"petition:view_back:{petition_id}:{offset}")
+            ]
+        ])
+
+    @staticmethod
+    def stats_share_menu(share_text: str) -> InlineKeyboardMarkup:
+        """Menu for sharing stats to Telegram and X."""
+        encoded_text = quote(share_text)
+        tg_url = f"https://t.me/share/url?text={encoded_text}"
+        x_url = f"https://x.com/intent/tweet?text={encoded_text}"
+        
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📤 اشتراک در تلگرام", url=tg_url),
+                InlineKeyboardButton("𝕏 اشتراک در X", url=x_url)
+            ]
         ])

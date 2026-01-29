@@ -6,11 +6,13 @@ from typing import List
 from telegram import Bot
 from sqlalchemy import select
 
-from src.database import get_db, NotificationPreference, Announcement, Victory, InstagramTarget
+from src.database import get_db, User, Announcement, Victory, InstagramTarget
 from src.database.models import AnnouncementCategory
 from src.utils.formatters import Formatters
+from src.utils.security import decrypt_id
 from config import Messages
 import logging
+from telegram.error import Forbidden
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +29,13 @@ class NotificationService:
             # Get appropriate subscribers based on category
             if announcement.category == AnnouncementCategory.URGENT:
                 result = await session.execute(
-                    select(NotificationPreference)
-                    .where(NotificationPreference.announcements_urgent == True)
+                    select(User)
+                    .where(User.announcements_urgent == True)
                 )
             else:
                 result = await session.execute(
-                    select(NotificationPreference)
-                    .where(NotificationPreference.announcements_news == True)
+                    select(User)
+                    .where(User.announcements_news == True)
                 )
             
             subscribers = result.scalars().all()
@@ -41,78 +43,158 @@ class NotificationService:
             message = Formatters.format_announcement(announcement)
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+                    
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2"
                     )
                     sent_count += 1
-                except Exception:
-                    # User may have blocked the bot
-                    pass
+                except Forbidden:
+                    logger.warning(f"User {user.id} has blocked the bot. Marking as blocked.")
+                    user.is_blocked_by_user = True
+                    # If we have a session, it will be committed on close if we're using a transaction
+                    # but here we're inside an 'async with get_db()' block.
+                    # Usually, these helpers don't auto-commit unless specified.
+                    # Let's ensure it's saved.
+                    session.add(user)
+                except Exception as e:
+                    logger.error(f"Error sending announcement to {user.id}: {e}")
             
+            await session.commit()
             return sent_count
     
     async def broadcast_victory(self, victory: Victory, target: InstagramTarget):
         """Broadcast a victory to all opted-in users."""
         async with get_db() as session:
             result = await session.execute(
-                select(NotificationPreference)
-                .where(NotificationPreference.victories == True)
+                select(User)
+                .where(User.victories == True)
             )
             subscribers = result.scalars().all()
             
             message = f"""
 🏆🎉 *پیروزی جدید\\!* 🎉🏆
 
-@{Formatters.escape_markdown(target.ig_handle)} حذف شد\\!
+[@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle}) حذف شد\\!
 
-👥 {Formatters.escape_markdown(Formatters.format_number(target.followers_count))} فالوور ساکت شد
 📊 {victory.final_report_count} گزارش از جامعه
 
 صدای ما شنیده شد\\! ✊🔥
 """
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+                    
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2"
                     )
                     sent_count += 1
+                except Forbidden:
+                    logger.warning(f"User {user.id} has blocked the bot. Marking as blocked.")
+                    user.is_blocked_by_user = True
+                    session.add(user)
+                except Exception as e:
+                    logger.error(f"Failed to send victory notification: {e}")
+            
+            await session.commit()
+            return sent_count
+    
+    async def notify_victory_reporters(self, target: InstagramTarget):
+        """Notify users who specifically reported this target as closed."""
+        from src.database.models import UserVictoryLog, UserConcernLog
+        async with get_db() as session:
+            # 1. Get from UserVictoryLog
+            result_v = await session.execute(
+                select(UserVictoryLog.encrypted_user_id)
+                .where(UserVictoryLog.target_id == target.id)
+            )
+            reporters_v = result_v.scalars().all()
+            
+            # 2. Get from UserConcernLog (where type is 'closed')
+            result_c = await session.execute(
+                select(UserConcernLog.encrypted_user_id)
+                .where(UserConcernLog.target_id == target.id)
+                .where(UserConcernLog.concern_type == 'closed')
+            )
+            reporters_c = result_c.scalars().all()
+            
+            # Combine unique IDs
+            all_enc_ids = set(reporters_v) | set(reporters_c)
+            
+            message = f"""
+✅ *گزارش شما تأیید شد\\!*
+
+صفحه @{Formatters.escape_markdown(target.ig_handle)} با تایید ادمین حذف شد\\. 🏆
+
+از مشارکت شما سپاسگزاریم\\. با هم قوی‌تریم\\! 🤝🔥
+"""
+            
+            sent_count = 0
+            for enc_id in all_enc_ids:
+                try:
+                    chat_id = decrypt_id(enc_id)
+                    if not chat_id: continue
+                    
+                    await self.bot.send_message(
+                        chat_id=chat_id,
+                        text=message,
+                        parse_mode="MarkdownV2"
+                    )
+                    sent_count += 1
+                except Forbidden:
+                    # Need to find the user by enc_id
+                    from src.database.models import User
+                    user_res = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+                    user_obj = user_res.scalar_one_or_none()
+                    if user_obj:
+                        user_obj.is_blocked_by_user = True
+                        session.add(user_obj)
                 except Exception:
                     pass
             
+            await session.commit()
             return sent_count
     
     async def broadcast_petition(self, petition):
         """Broadcast a new petition to opted-in users."""
         async with get_db() as session:
             result = await session.execute(
-                select(NotificationPreference)
-                .where(NotificationPreference.petitions == True)
+                select(User)
+                .where(User.petitions == True)
             )
             subscribers = result.scalars().all()
             
             message = Formatters.format_new_petition_announcement(petition)
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+                    
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2"
                     )
                     sent_count += 1
+                except Forbidden:
+                    user.is_blocked_by_user = True
+                    session.add(user)
                 except Exception as e:
-                    logger.error(f"Failed to send petition notification to {pref.chat_id}: {e}")
-                    pass
+                    logger.error(f"Failed to send petition notification: {e}")
             
+            await session.commit()
             return sent_count
             
     async def broadcast_email_campaign(self, campaign):
@@ -122,8 +204,8 @@ class NotificationService:
         
         async with get_db() as session:
             result = await session.execute(
-                select(NotificationPreference)
-                .where(NotificationPreference.email_campaigns == True)
+                select(User)
+                .where(User.email_campaigns == True)
             )
             subscribers = result.scalars().all()
             
@@ -144,18 +226,26 @@ class NotificationService:
             ])
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2",
                         reply_markup=keyboard
                     )
-                    logger.info(f"Successfully sent email notification to {pref.chat_id}")
+                    logger.info(f"Successfully sent email notification to {chat_id}")
                     sent_count += 1
+                except Forbidden:
+                    user.is_blocked_by_user = True
+                    session.add(user)
                 except Exception as e:
-                    logger.error(f"Failed to send email notification to {pref.chat_id}: {e}")
+                    logger.error(f"Failed to send email notification: {e}")
+            
+            await session.commit()
             
             return sent_count
 
@@ -166,8 +256,9 @@ class NotificationService:
         from src.utils.keyboards import CallbackData
         
         async with get_db() as session:
-            result = await session.execute(select(Admin.telegram_id))
-            admin_ids = result.scalars().all()
+            result = await session.execute(select(Admin.encrypted_telegram_id))
+            encrypted_ids = result.scalars().all()
+            admin_ids = [decrypt_id(eid) for eid in encrypted_ids if decrypt_id(eid)]
             
             preview = ", ".join([f"@{h}" for h in handles[:3]])
             if len(handles) > 3:
@@ -214,8 +305,9 @@ class NotificationService:
         logger.info(f"Preparing removal notification for handle: {handle}, target_id: {target_id}")
         
         async with get_db() as session:
-            result = await session.execute(select(Admin.telegram_id))
-            admin_ids = result.scalars().all()
+            result = await session.execute(select(Admin.encrypted_telegram_id))
+            encrypted_ids = result.scalars().all()
+            admin_ids = [decrypt_id(eid) for eid in encrypted_ids if decrypt_id(eid)]
             
             logger.info(f"Found {len(admin_ids)} admins in database: {admin_ids}")
             
@@ -262,8 +354,8 @@ class NotificationService:
             # Broadcast to users who enabled 'targets' notifications
             try:
                 result = await session.execute(
-                    select(NotificationPreference)
-                    .where(NotificationPreference.targets == True)
+                    select(User)
+                    .where(User.targets == True)
                 )
                 subscribers = result.scalars().all()
                 logger.info(f"Broadcast: Found {len(subscribers)} subscribers with targets=True")
@@ -278,17 +370,24 @@ class NotificationService:
             ])
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+                    
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2",
                         reply_markup=keyboard
                     )
                     sent_count += 1
+                except Forbidden:
+                    user.is_blocked_by_user = True
+                    session.add(user)
                 except Exception as e:
-                    logger.error(f"Failed to send target alert to {pref.chat_id}: {e}")
+                    logger.error(f"Failed to send target alert: {e}")
             
+            await session.commit()
             logger.info(f"Broadcast: Sent to {sent_count} users")
             return sent_count

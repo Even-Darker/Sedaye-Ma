@@ -27,9 +27,11 @@ async def is_user_admin(user_id: int) -> bool:
     """Check if user is an admin."""
     if user_id in settings.super_admin_ids:
         return True
+    from src.utils.security import encrypt_id
+    enc_id = encrypt_id(user_id)
     async with get_db() as session:
         result = await session.execute(
-            select(Admin).where(Admin.telegram_id == user_id)
+            select(Admin).where(Admin.encrypted_telegram_id == enc_id)
         )
         return result.scalar_one_or_none() is not None
 

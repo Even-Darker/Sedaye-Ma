@@ -6,12 +6,12 @@ from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 from sqlalchemy import select
 
-from src.database.models import FreeConfig, UserConfigReport
+from src.database.models import FreeConfig, UserConfigReport, User
 from src.database.connection import get_db
 from config.messages_fa import Messages
 from src.utils.keyboards import Keyboards, CallbackData
 from src.utils.formatters import Formatters
-from src.utils.security import security_manager
+from src.utils.security import encrypt_id
 
 
 # Helper to get message function
@@ -102,20 +102,32 @@ async def copy_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ کانفیگ یافت نشد", show_alert=True)
 
 
+
+
 async def report_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Report a broken config."""
     query = update.callback_query
     config_id = int(query.data.split(":")[-1])
     user_id = update.effective_user.id
     
-    user_hash = security_manager.hash_user_id(user_id)
+    enc_id = encrypt_id(user_id)
     
     async with get_db() as session:
+        # Get User's Encrypted ID (Canonical)
+        result = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+        user = result.scalar_one_or_none()
+        
+        # User already fetches by encrypted_chat_id, so if user exists, use that.
+        # But we already have enc_id from the function call.
+        # If user not found in DB, we should create? Or just use the enc_id for logging?
+        # Logging only requires ID.
+        pass
+        
         # Check if already reported
         existing = await session.execute(
             select(UserConfigReport).where(
                 UserConfigReport.config_id == config_id,
-                UserConfigReport.user_hash == user_hash
+                UserConfigReport.encrypted_user_id == enc_id
             )
         )
         if existing.scalar_one_or_none():
@@ -131,7 +143,7 @@ async def report_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
             config.report_count += 1
             
             # Log the report
-            report_log = UserConfigReport(config_id=config_id, user_hash=user_hash)
+            report_log = UserConfigReport(config_id=config_id, encrypted_user_id=enc_id)
             session.add(report_log)
             
             await session.commit()

@@ -5,6 +5,7 @@ Handles listing, viewing, and reporting Instagram targets.
 from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from sqlalchemy import select
+from datetime import datetime
 
 from config import Messages, settings
 from src.utils import Keyboards, Formatters
@@ -24,14 +25,14 @@ async def show_report_sandisi_menu(update: Update, context: ContextTypes.DEFAULT
         await query.answer()
         
         await query.edit_message_text(
-            Messages.REPORT_SANDISI_DESCRIPTION,
+            Messages.REPORT_SANDISI_DESCRIPTION + Messages.IG_REPORT_HELP_FOOTER,
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.report_sandisi_menu()
         )
     else:
         # From text menu
         await update.message.reply_text(
-            Messages.REPORT_SANDISI_DESCRIPTION,
+            Messages.REPORT_SANDISI_DESCRIPTION + Messages.IG_REPORT_HELP_FOOTER,
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.report_sandisi_menu()
         )
@@ -71,14 +72,16 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     # Prepare User Hash for filtering
     user_id = query.from_user.id
-    from hashlib import sha256
-    from config import settings
-    from src.database.models import UserReportLog
+    from src.database.models import UserReportLog, User
+    from src.utils.security import encrypt_id
     
-    salt = settings.encryption_key or "default_salt" 
-    user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+    enc_id = encrypt_id(user_id)
     
     async with get_db() as session:
+        # Get canonical encrypted ID for filtering
+        res_user = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+        db_user = res_user.scalar_one_or_none()
+
         # Base query
         stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
         
@@ -88,27 +91,35 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Apply Filter
         if filter_type == CallbackData.FILTER_NEW:
-            # Subquery: IDs user has reported
-            subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
-            stmt = stmt.where(InstagramTarget.id.not_in(subq))
-            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \\(گزارش نشده توسط شما\\)*"
+            if enc_id:
+                # Subquery: IDs user has reported
+                subq = select(UserReportLog.target_id).where(UserReportLog.encrypted_user_id == enc_id)
+                stmt = stmt.where(InstagramTarget.id.not_in(subq))
+            # If no enc_id, they haven't reported anything, so ALL are new. No filter needed.
+            
+            header_text = f"{Messages.TARGETS_HEADER}\n\n{Messages.REPORTING_STEP_BY_STEP}\n{Messages.TARGETS_PROBLEM_HELP.format(Messages.IG_REPORT_HELP_FOOTER)}"
             
         elif filter_type == CallbackData.FILTER_REPORTED:
-            # Subquery: IDs user HAS reported
-            subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
-            stmt = stmt.where(InstagramTarget.id.in_(subq))
+            if enc_id:
+                # Subquery: IDs user HAS reported
+                subq = select(UserReportLog.target_id).where(UserReportLog.encrypted_user_id == enc_id)
+                stmt = stmt.where(InstagramTarget.id.in_(subq))
+            else:
+                 # No reports, so return empty
+                 stmt = stmt.where(InstagramTarget.id == -1) # Impossible ID
+
             # Enhanced description for reported validation
             header_text = (
                 f"{Messages.TARGETS_HEADER}\n\n"
                 "✅ *گزارش‌های من*\n"
                 "لیست صفحاتی که شما قبلاً گزارش داده‌اید\\.\n"
                 "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\.\n\n"
-                "_📝 دکمه «گزارش»: اگر فکر می‌کنید صفحه بسته شده است یا مشکل دیگری هست حتما به ما گزارش دهید\\!_"
+                f"{Messages.TARGETS_PROBLEM_HELP.format(Messages.IG_REPORT_HELP_FOOTER)}"
             )
             show_report_btn = False
             
         else:
-            header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*"
+            header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*\n{Messages.TARGETS_PROBLEM_HELP.format(Messages.IG_REPORT_HELP_FOOTER)}"
 
         # Order and Limit
         stmt = stmt.order_by(InstagramTarget.priority.asc(), InstagramTarget.anonymous_report_count.desc())
@@ -135,11 +146,15 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Re-build count query efficiently
         count_stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
         if filter_type == CallbackData.FILTER_NEW:
-             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
-             count_stmt = count_stmt.where(InstagramTarget.id.not_in(subq))
+             if enc_id:
+                 subq = select(UserReportLog.target_id).where(UserReportLog.encrypted_user_id == enc_id)
+                 count_stmt = count_stmt.where(InstagramTarget.id.not_in(subq))
         elif filter_type == CallbackData.FILTER_REPORTED:
-             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
-             count_stmt = count_stmt.where(InstagramTarget.id.in_(subq))
+             if enc_id:
+                 subq = select(UserReportLog.target_id).where(UserReportLog.encrypted_user_id == enc_id)
+                 count_stmt = count_stmt.where(InstagramTarget.id.in_(subq))
+             else:
+                 count_stmt = count_stmt.where(InstagramTarget.id == -1)
              
         count_result = await session.execute(count_stmt)
         total = len(count_result.scalars().all())
@@ -171,27 +186,34 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Prepare User Hash
     user_id = query.from_user.id
-    from hashlib import sha256
-    from config import settings
-    from src.database.models import UserReportLog
+    from src.database.models import UserReportLog, User
+    from src.utils.security import encrypt_id
     
-    salt = settings.encryption_key or "default_salt" 
-    user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+    enc_id = encrypt_id(user_id)
     
     async with get_db() as session:
+        # Get canonical encrypted ID for filtering
+        res_user = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+        db_user = res_user.scalar_one_or_none()
+
         stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
         
         # Default flag
         show_report_btn = True
         
         if filter_type == CallbackData.FILTER_NEW:
-            subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
-            stmt = stmt.where(InstagramTarget.id.not_in(subq))
+            if enc_id:
+                subq = select(UserReportLog.target_id).where(UserReportLog.encrypted_user_id == enc_id)
+                stmt = stmt.where(InstagramTarget.id.not_in(subq))
             header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \\(گزارش نشده توسط شما\\)*\n\n_📝 دکمه «گزارش»: اگر فکر می‌کنید صفحه بسته شده است یا مشکل دیگری هست حتما به ما گزارش دهید\\!_"
             
         elif filter_type == CallbackData.FILTER_REPORTED:
-            subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
-            stmt = stmt.where(InstagramTarget.id.in_(subq))
+            if enc_id:
+                subq = select(UserReportLog.target_id).where(UserReportLog.encrypted_user_id == enc_id)
+                stmt = stmt.where(InstagramTarget.id.in_(subq))
+            else:
+                 stmt = stmt.where(InstagramTarget.id == -1)
+
             # Enhanced description for reported validation
             header_text = (
                 f"{Messages.TARGETS_HEADER}\n\n"
@@ -214,11 +236,15 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Count total
         count_stmt = select(InstagramTarget).where(InstagramTarget.status == TargetStatus.ACTIVE)
         if filter_type == CallbackData.FILTER_NEW:
-             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
-             count_stmt = count_stmt.where(InstagramTarget.id.not_in(subq))
+             if enc_id:
+                 subq = select(UserReportLog.target_id).where(UserReportLog.encrypted_user_id == enc_id)
+                 count_stmt = count_stmt.where(InstagramTarget.id.not_in(subq))
         elif filter_type == CallbackData.FILTER_REPORTED:
-             subq = select(UserReportLog.target_id).where(UserReportLog.user_hash == user_hash)
-             count_stmt = count_stmt.where(InstagramTarget.id.in_(subq))
+             if enc_id:
+                 subq = select(UserReportLog.target_id).where(UserReportLog.encrypted_user_id == enc_id)
+                 count_stmt = count_stmt.where(InstagramTarget.id.in_(subq))
+             else:
+                 count_stmt = count_stmt.where(InstagramTarget.id == -1)
              
         count_result = await session.execute(count_stmt)
         total = len(count_result.scalars().all())
@@ -318,22 +344,22 @@ async def i_reported_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     target_id = int(query.data.split(":")[-1])
     
     async with get_db() as session:
-        # 1. Check if user already reported (Hash check)
+        # 1. Check if user already reported
         user_id = query.from_user.id
-        from hashlib import sha256
-        from config import settings
-        from src.database.models import UserReportLog
+        from src.database.models import UserReportLog, User
+        from src.utils.security import encrypt_id
         
-        # Create hash: SHA256(user_id + encryption_key)
-        # Using encryption_key as salt since it's secret and constant
-        salt = settings.encryption_key or "default_salt" 
-        user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+        enc_id = encrypt_id(user_id)
         
+        # Get Encrypted ID
+        res_user = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+        user = res_user.scalar_one_or_none()
+
         # Check for existing log
         existing_log = await session.execute(
             select(UserReportLog).where(
                 UserReportLog.target_id == target_id,
-                UserReportLog.user_hash == user_hash
+                UserReportLog.encrypted_user_id == enc_id
             )
         )
         if existing_log.scalar_one_or_none():
@@ -351,7 +377,7 @@ async def i_reported_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
         
         # 3. Log the report (Securely)
-        new_log = UserReportLog(target_id=target_id, user_hash=user_hash)
+        new_log = UserReportLog(target_id=target_id, encrypted_user_id=enc_id)
         session.add(new_log)
         
         # Increment counter (anonymous!)
@@ -384,16 +410,25 @@ async def start_concern_report(update: Update, context: ContextTypes.DEFAULT_TYP
     """Start concern report flow - Show Menu."""
     query = update.callback_query
     target_id = int(query.data.split(":")[-1])
-    
-    # Save target_id specific to this flow if needed, 
-    # but for simple menu we can carry it in callback_data.
-    # Actually wait, we need to answer query first.
     await query.answer()
     
+    # Determine if user is an admin
+    from src.database.models import Admin
+    from src.utils.security import encrypt_id
+    
+    user_id = query.from_user.id
+    enc_id = encrypt_id(user_id)
+    
+    async with get_db() as session:
+        result = await session.execute(
+            select(Admin).where(Admin.encrypted_telegram_id == enc_id)
+        )
+        is_admin = result.scalar_one_or_none() is not None
+
     await query.edit_message_text(
         "🤔 *گزارش مشکل*\n\nلطفاً نوع مشکل را انتخاب کنید:",
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.concern_menu(target_id)
+        reply_markup=Keyboards.concern_menu(target_id, is_admin=is_admin)
     )
     return CHOOSING_CONCERN
 
@@ -401,6 +436,7 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
     """User selected 'Page Closed'."""
     query = update.callback_query
     target_id = int(query.data.split(":")[-1])
+    await query.answer()
     
     async with get_db() as session:
         # Get target info
@@ -413,18 +449,52 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
             return ConversationHandler.END
 
         # Check for Duplicate Concern
+        # 1. Check if reporting user is an admin
         user_id = query.from_user.id
-        from hashlib import sha256
-        from config import settings
-        from src.database.models import UserConcernLog
+        from src.database.models import UserConcernLog, User, Admin, Victory
+        from src.utils.security import encrypt_id, decrypt_id
         
-        salt = settings.encryption_key or "default_salt" 
-        user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+        enc_id = encrypt_id(user_id)
+        
+        result_admin = await session.execute(
+            select(Admin).where(Admin.encrypted_telegram_id == enc_id)
+        )
+        admin_obj = result_admin.scalar_one_or_none()
+        
+        if admin_obj:
+            # ADMIN: Directly confirm victory
+            target.status = TargetStatus.REMOVED
+            target.removed_at = datetime.utcnow()
+            
+            victory = Victory(
+                target_id=target.id,
+                victory_date=datetime.utcnow(),
+                final_report_count=target.anonymous_report_count
+            )
+            session.add(victory)
+            await session.commit()
+            
+            await query.answer("🏆 پیروزی مستقیماً ثبت شد!", show_alert=True)
+            
+            # Broadcast Victory
+            try:
+                from src.services.notification_service import NotificationService
+                await NotificationService(context.bot).broadcast_victory(victory, target)
+            except Exception as e:
+                logger.error(f"Failed to broadcast direct victory: {e}")
+            
+            # Show updated list
+            await show_targets_list(update, context)
+            return ConversationHandler.END
+
+        # NORMAL USER: Proceed with admin notification/approval flow
+        res_user = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+        user_obj = res_user.scalar_one_or_none()
         
         existing_log = await session.execute(
             select(UserConcernLog).where(
                 UserConcernLog.target_id == target_id,
-                UserConcernLog.user_hash == user_hash,
+                UserConcernLog.encrypted_user_id == enc_id,
                 UserConcernLog.concern_type == "closed"
             )
         )
@@ -433,22 +503,21 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
             return ConversationHandler.END
 
         # Notify Admins
-        from src.database.models import Admin
         admins = (await session.execute(select(Admin))).scalars().all()
         
         for admin in admins:
             try:
                 await context.bot.send_message(
-                    chat_id=admin.telegram_id,
-                    text=f"🚨 *گزارش بسته شدن صفحه*\n\nSandisi: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
-                    parse_mode="HTML",
+                    chat_id=decrypt_id(admin.encrypted_telegram_id),
+                    text=f"🚨 *گزارش بسته شدن صفحه*\n\nSandisi: [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle})\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
+                    parse_mode="MarkdownV2",
                     reply_markup=Keyboards.admin_confirm_closed(target.id)
                 )
             except Exception:
                 pass
         
         # Log It
-        new_log = UserConcernLog(target_id=target_id, user_hash=user_hash, concern_type="closed")
+        new_log = UserConcernLog(target_id=target_id, encrypted_user_id=enc_id, concern_type="closed")
         session.add(new_log)
         await session.commit()
 
@@ -486,12 +555,13 @@ async def receive_concern_message(update: Update, context: ContextTypes.DEFAULT_
         )).scalar_one_or_none()
         
         # Save to Database
-        from hashlib import sha256
-        from config import settings
-        from src.database.models import UserConcernLog
+        from src.database.models import UserConcernLog, User
+        from src.utils.security import encrypt_id
         
-        salt = settings.encryption_key or "default_salt" 
-        user_hash = sha256(f"{user.id}{salt}".encode()).hexdigest()
+        enc_id = encrypt_id(user.id)
+        
+        res_user = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+        user_obj = res_user.scalar_one_or_none()
         
         # Check duplicate (one "other" per target per user?)
         # Or allow multiple messages? Maybe limit spam?
@@ -499,7 +569,7 @@ async def receive_concern_message(update: Update, context: ContextTypes.DEFAULT_
         existing_log = await session.execute(
             select(UserConcernLog).where(
                 UserConcernLog.target_id == target_id,
-                UserConcernLog.user_hash == user_hash,
+                UserConcernLog.encrypted_user_id == enc_id,
                 UserConcernLog.concern_type == "other"
             )
         )
@@ -512,7 +582,7 @@ async def receive_concern_message(update: Update, context: ContextTypes.DEFAULT_
         # Create Log
         new_log = UserConcernLog(
             target_id=target_id, 
-            user_hash=user_hash, 
+            encrypted_user_id=enc_id, 
             concern_type="other",
             message_content=text 
         )
@@ -525,10 +595,11 @@ async def receive_concern_message(update: Update, context: ContextTypes.DEFAULT_
         
         for admin in admins:
             try:
+                from src.utils.security import decrypt_id
                 await context.bot.send_message(
-                    chat_id=admin.telegram_id,
-                    text=f"📨 *پیام کاربر (مشکل صفحه)*\n\n👤 کاربر: ناشناس (Anonymous)\nTarget: @{target.ig_handle if target else 'Unknown'}\n\n💬 پیام:\n{text}",
-                    parse_mode="HTML"
+                    chat_id=decrypt_id(admin.encrypted_telegram_id),
+                    text=f"📨 *پیام کاربر (مشکل صفحه)*\n\n👤 کاربر: ناشناس \\(Anonymous\\)\nTarget: [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle})\n\n💬 پیام:\n{Formatters.escape_markdown(text)}",
+                    parse_mode="MarkdownV2"
                 )
             except Exception:
                 pass

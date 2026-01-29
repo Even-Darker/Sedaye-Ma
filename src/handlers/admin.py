@@ -2,7 +2,7 @@
 Admin handlers for Sedaye Ma bot.
 Protected commands for managing the bot.
 """
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ContextTypes, CommandHandler, CallbackQueryHandler, 
     MessageHandler, filters, ConversationHandler
@@ -38,12 +38,16 @@ ADDING_CONFIG_URI = 6
 ADDING_CONFIG_DESC = 7
 
 
+
 async def is_super_admin(user_id: int) -> bool:
     """Check if user is a super admin (Database only)."""
+    from src.utils.security import encrypt_id
+    enc_id = encrypt_id(user_id)
+    
     async with get_db() as session:
         result = await session.execute(
             select(Admin).where(
-                Admin.telegram_id == user_id,
+                Admin.encrypted_telegram_id == enc_id,
                 Admin.role == AdminRole.SUPER_ADMIN
             )
         )
@@ -169,7 +173,8 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
         await loading_msg.edit_text(
             f"⚠️ *فرمت نامعتبر است*\n\n"
             "لطفاً یک handle معتبر وارد کنید:",
-            parse_mode="MarkdownV2"
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.back_to_admin()
         )
         return ADDING_TARGET_HANDLE
     
@@ -203,7 +208,8 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
              await loading_msg.edit_text(
                 f"⚠️ *فرمت handle نامعتبر است*\n\n"
                 f"خطا: {Formatters.escape_markdown(format_error)}\n",
-                parse_mode="MarkdownV2"
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.back_to_admin()
             )
              return ADDING_TARGET_HANDLE
 
@@ -213,7 +219,8 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
             await loading_msg.edit_text(
                 f"❌ *صفحه پیدا نشد*\n\n"
                 f"صفحه @{Formatters.escape_markdown(handle)} در اینستاگرام وجود ندارد\\.",
-                parse_mode="MarkdownV2"
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.back_to_admin()
             )
             return ADDING_TARGET_HANDLE
             
@@ -409,6 +416,15 @@ async def mark_as_victory(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session.add(victory)
         await session.commit()
         
+        # Broadcast Victory
+        try:
+            from src.services.notification_service import NotificationService
+            notifier = NotificationService(context.bot)
+            await notifier.broadcast_victory(victory, target)
+            await notifier.notify_victory_reporters(target)
+        except Exception as e:
+            logger.error(f"Failed to broadcast manual removal victory: {e}")
+        
         await query.answer(f"🏆 پیروزی ثبت شد! @{target.ig_handle}", show_alert=True)
         
         # Return to admin panel
@@ -525,7 +541,9 @@ async def manage_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message += "_برای حذف ادمین، روی آن کلیک کنید:_\n\n"
             for admin in admins:
                 # Escape values to prevent Markdown errors
-                safe_id = Formatters.escape_markdown(str(admin.telegram_id))
+                from src.utils.security import decrypt_id
+                decrypted = decrypt_id(admin.encrypted_telegram_id)
+                safe_id = Formatters.escape_markdown(str(decrypted))
                 safe_role = Formatters.escape_markdown(admin.role.value)
                 message += f"• {safe_id} \\({safe_role}\\)\n"
         else:
@@ -546,11 +564,15 @@ async def start_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(
         "➕ *افزودن ادمین جدید*\n\n"
-        "لطفاً یکی از موارد زیر را ارسال کنید:\n\n"
-        "1️⃣ نام کاربری \\(@username\\)\n"
-        "2️⃣ شناسه عددی \\(User ID\\)\n"
-        "3️⃣ *فوروارد کردن یک پیام از کاربر*",
+        "شما می‌توانید با استفاده از دکمه زیر، کاربر مورد نظر را از لیست مخاطبان خود انتخاب کنید یا نام کاربری او را جستجو کنید\\.\n\n"
+        "⚠️ *توجه:* کاربر مورد نظر باید قبلاً ربات را استارت کرده باشد\\.",
         parse_mode="MarkdownV2"
+    )
+    
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="👇 لطفاً از دکمه زیر استفاده کنید:",
+        reply_markup=Keyboards.request_admin_user()
     )
     
     return ADDING_ADMIN_ID
@@ -623,9 +645,34 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
             )
             return ADDING_ADMIN_ID
             
-    if not new_admin_id:
-         await update.message.reply_text("❌ خطای نامشخص", parse_mode="MarkdownV2")
-         return ADDING_ADMIN_ID
+    return await _promote_user_to_admin(update, context, new_admin_id, display_name)
+
+
+async def handle_shared_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the user_shared service message for admin promotion."""
+    
+    if not update.message or not update.message.users_shared:
+        return ADDING_ADMIN_ID
+        
+    shared_user = update.message.users_shared.users[0]
+    new_admin_id = shared_user.user_id
+    
+    # Remove the reply keyboard
+    await update.message.reply_text(
+        "⏳ در حال پردازش انتخاب شما\\.\\.\\.",
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode="MarkdownV2"
+    )
+    
+    return await _promote_user_to_admin(update, context, new_admin_id)
+
+
+async def _promote_user_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE, new_admin_id: int):
+    """Internal helper to promote a user to admin."""
+    user_id = update.effective_user.id
+    from src.database.models import Admin, AdminRole
+    from src.database.connection import get_db
+    from sqlalchemy import select
     
     # Check if it's themselves
     if new_admin_id == user_id:
@@ -635,10 +682,14 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
         )
         return ADDING_ADMIN_ID
     
+
     async with get_db() as session:
         # Check if already exists
+        from src.utils.security import encrypt_id
+        enc_id = encrypt_id(new_admin_id)
+        
         result = await session.execute(
-            select(Admin).where(Admin.telegram_id == new_admin_id)
+            select(Admin).where(Admin.encrypted_telegram_id == enc_id)
         )
         if result.scalar_one_or_none():
             await update.message.reply_text(
@@ -649,18 +700,16 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
         
         # Add new admin
         new_admin = Admin(
-            telegram_id=new_admin_id,
+            encrypted_telegram_id=enc_id,
             role=AdminRole.MODERATOR # Default role
         )
         session.add(new_admin)
         await session.commit()
         
     await update.message.reply_text(
-        f"✅ *ادمین جدید اضافه شد*\n\n"
-        f"کاربر: {Formatters.escape_markdown(str(display_name))}\n"
-        f"شناسه: `{new_admin_id}`",
+        f"✅ *ادمین جدید اضافه شد*\n\n",
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.admin_menu(is_super_admin=True) # Assuming adder is super
+        reply_markup=Keyboards.main_menu_persistent(is_admin=True) # Restore bottom keyboard
     )
     return ConversationHandler.END
 
@@ -669,6 +718,7 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
 async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Remove an admin."""
     query = update.callback_query
+    from src.utils.security import decrypt_id
     
     admin_id = int(query.data.split(":")[-1])
     
@@ -687,7 +737,7 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("⛔ ادمین‌های اصلی قابل حذف نیستند", show_alert=True)
             return
         
-        telegram_id = admin.telegram_id
+        telegram_id = decrypt_id(admin.encrypted_telegram_id)
         await session.delete(admin)
         await session.commit()
         
@@ -714,12 +764,11 @@ async def cancel_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     return ConversationHandler.END
 
 
-# Global Menu Pattern for Fallbacks
 MENU_PATTERN = re.compile(f"^({'|'.join(map(re.escape, [
     Messages.MENU_TARGETS, Messages.MENU_ANNOUNCEMENTS, 
     Messages.MENU_PETITIONS, Messages.MENU_SOLIDARITY, 
     Messages.MENU_RESOURCES, Messages.MENU_SETTINGS, 
-    Messages.ADMIN_HEADER
+    Messages.ADMIN_HEADER, Messages.CANCEL_ACTION
 ]))})$")
 
 
@@ -747,7 +796,15 @@ async def handle_menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYP
         await resources.show_resources(update, context)
     elif text == Messages.MENU_SETTINGS:
         await settings.show_settings(update, context)
-    elif text == Messages.ADMIN_HEADER:
+    elif text == Messages.ADMIN_HEADER or text == Messages.CANCEL_ACTION:
+        # Restore the main menu reply keyboard since it was replaced by the "Select User" button
+        is_sa = await is_super_admin(update.effective_user.id)
+        await update.message.reply_text(
+            Messages.ADMIN_HEADER,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.main_menu_persistent(is_admin=True)
+        )
+        # Also refresh the inline panel
         await admin_panel(update, context)
     else:
         await update.message.reply_text(Messages.ERROR_GENERIC)
@@ -873,7 +930,7 @@ async def manage_configs(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Show FULL URI in code block for easy copying
             
-            message += f"*{index}\.* {Formatters.escape_markdown(desc)}{report_badge}\n"
+            message += f"*{index}\\.* {Formatters.escape_markdown(desc)}{report_badge}\n"
             message += f"`{Formatters.escape_markdown(config.config_uri)}`\n\n"
             
             keyboard.append([InlineKeyboardButton(
@@ -944,6 +1001,7 @@ add_admin_conversation = ConversationHandler(
     states={
         ADDING_ADMIN_ID: [
             MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex(MENU_PATTERN), receive_admin_username),
+            MessageHandler(filters.StatusUpdate.USER_SHARED, handle_shared_user),
         ],
     },
     fallbacks=[
@@ -1122,6 +1180,16 @@ async def confirm_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
                 )
                 session.add(victory)
                 await session.commit()
+
+                # Broadcast Victory
+                try:
+                    from src.services.notification_service import NotificationService
+                    notifier = NotificationService(context.bot)
+                    await notifier.broadcast_victory(victory, target)
+                    await notifier.notify_victory_reporters(target)
+                except Exception as e:
+                    logger.error(f"Failed to broadcast closed report list victory: {e}")
+
                 await query.answer("🏆 صفحه بسته شد! لیست بروزرسانی شد.")
 
     # Show next report (or empty state)
@@ -1357,11 +1425,20 @@ async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session.add(victory)
         await session.commit()
         
+        # Broadcast Victory
+        try:
+            from src.services.notification_service import NotificationService
+            notifier = NotificationService(context.bot)
+            await notifier.broadcast_victory(victory, target)
+            await notifier.notify_victory_reporters(target)
+        except Exception as e:
+            logger.error(f"Failed to broadcast manual victory: {e}")
+        
         # Announce victory to admin
         # Announce victory to admin
         await query.edit_message_text(
             f"🎉 *پیروزی ثبت شد\\!*\n\n"
-            f"صفحه @{Formatters.escape_markdown(target.ig_handle)} به لیست پیروزی‌ها اضافه شد\\.\n"
+            f"صفحه [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle}) به لیست پیروزی‌ها اضافه شد\\.\n"
             f"آمار ربات به‌روزرسانی شد\\.",
             parse_mode="MarkdownV2"
         )
@@ -1409,6 +1486,15 @@ async def admin_process_closed_report(update: Update, context: ContextTypes.DEFA
         session.add(victory)
         await session.commit()
         
+        # Broadcast Victory
+        try:
+            from src.services.notification_service import NotificationService
+            notifier = NotificationService(context.bot)
+            await notifier.broadcast_victory(victory, target)
+            await notifier.notify_victory_reporters(target)
+        except Exception as e:
+            logger.error(f"Failed to broadcast closed report recovery victory: {e}")
+            
         await query.answer("🏆 پیروزی ثبت شد!", show_alert=True)
         await query.edit_message_text(
             f"{query.message.text}\n\n🏆 *تایید شد: پیروزی ثبت شد!*",
@@ -1469,7 +1555,7 @@ admin_handlers = [
     CallbackQueryHandler(delete_config, pattern=r"^admin:delete_config:\d+$"),
     
     # Email Campaigns Management
-    CallbackQueryHandler(manage_emails, pattern=f"^{CallbackData.ADMIN_MANAGE_EMAILS}(:\d+)?$"),
+    CallbackQueryHandler(manage_emails, pattern=rf"^{CallbackData.ADMIN_MANAGE_EMAILS}(:\d+)?$"),
     CallbackQueryHandler(delete_email_handler, pattern=r"^admin:delete_email:\d+$"),
     CallbackQueryHandler(view_email_admin_handler, pattern=r"^admin:email:view:\d+$"),
 

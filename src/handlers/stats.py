@@ -70,7 +70,6 @@ async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'active_targets': active_targets,
             'removed_targets': removed_targets,
             'total_reports': total_reports,
-            'followers_silenced': followers_silenced,
             'weekly_increase_percent': 23,  # Would need historical data
             'weekly_removals': weekly_removals,
         }
@@ -81,7 +80,7 @@ async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message += f"""
 
 {Messages.STATS_HOTTEST}
-@{Formatters.escape_markdown(hottest.ig_handle)} \\- {hottest.anonymous_report_count} {Messages.TARGET_REPORTS}
+[@{Formatters.escape_markdown(hottest.ig_handle)}](https://instagram.com/{hottest.ig_handle}) \\- {hottest.anonymous_report_count} {Messages.TARGET_REPORTS}
 """
         
         await query.edit_message_text(

@@ -106,20 +106,24 @@ async def sync_super_admins():
     from .models import Admin, AdminRole
     from sqlalchemy import select
     
+    from src.utils.security import encrypt_id
+    
     if not settings.super_admin_ids:
         return
 
     async with AsyncSessionLocal() as session:
         for user_id in settings.super_admin_ids:
+            enc_id = encrypt_id(user_id)
+            
             # Check if exists
             result = await session.execute(
-                select(Admin).where(Admin.telegram_id == user_id)
+                select(Admin).where(Admin.encrypted_telegram_id == enc_id)
             )
             admin = result.scalar_one_or_none()
             
             if not admin:
                 # Create new super admin
-                admin = Admin(telegram_id=user_id, role=AdminRole.SUPER_ADMIN)
+                admin = Admin(encrypted_telegram_id=enc_id, role=AdminRole.SUPER_ADMIN)
                 session.add(admin)
             elif admin.role != AdminRole.SUPER_ADMIN:
                 # Promote existing admin
@@ -163,23 +167,5 @@ async def check_migrations():
         else:
             logger.info("Migration: No changes needed for free_configs.")
             
-        # Check if notification_preferences.email_campaigns exists
-        try:
-            await session.execute(text("SELECT email_campaigns FROM notification_preferences LIMIT 1"))
-        except Exception:
-            logger.info("Migration: Adding email_campaigns to notification_preferences...")
-            await session.rollback()
-            async with engine.begin() as conn:
-                await conn.execute(text("ALTER TABLE notification_preferences ADD COLUMN email_campaigns BOOLEAN DEFAULT 1"))
-            logger.info("Migration: Added email_campaigns.")
 
-        # Check if notification_preferences.targets exists
-        try:
-            await session.execute(text("SELECT targets FROM notification_preferences LIMIT 1"))
-        except Exception:
-            logger.info("Migration: Adding targets to notification_preferences...")
-            await session.rollback()
-            async with engine.begin() as conn:
-                await conn.execute(text("ALTER TABLE notification_preferences ADD COLUMN targets BOOLEAN DEFAULT 1"))
-            logger.info("Migration: Added targets.")
 

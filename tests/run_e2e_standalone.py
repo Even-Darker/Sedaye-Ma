@@ -12,12 +12,14 @@ os.environ["TELEGRAM_BOT_TOKEN"] = "test_token"
 os.environ["SUPER_ADMIN_IDS"] = "123456789"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["ENVIRONMENT"] = "test"
+os.environ["ENCRYPTION_KEY"] = "Vj75PKfqG2TvdP3mFmxH3qp7lowbaNweLzK3HYAucB8="
 
 # Import app modules
 from src.database import init_db, get_db, AsyncSessionLocal
-from src.database.models import Base, InstagramTarget, TargetStatus, Admin, AdminRole
+from src.database.models import Base, InstagramTarget, TargetStatus, Admin, AdminRole, User
 from src.utils.keyboards import CallbackData
-from sqlalchemy import select
+from src.utils.security import encrypt_id
+from sqlalchemy import select, update as update_sqla
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -58,6 +60,13 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
         
         REGULAR_USER_ID = 111222333
         SUPER_ADMIN_ID = 123456789
+        
+        # Seed Super Admin
+        from src.utils.security import encrypt_id
+        async with AsyncSessionLocal() as session:
+            admin = Admin(encrypted_telegram_id=encrypt_id(SUPER_ADMIN_ID), role=AdminRole.SUPER_ADMIN)
+            session.add(admin)
+            await session.commit()
         
         # 1. User suggests a page
         update = AsyncMock()
@@ -156,26 +165,38 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
             
         print("✅ test_suggest_edit_flow PASSED")
         print("\nRunning test_admin_management_lifecycle...")
-        from src.handlers.admin import receive_admin_id, remove_admin
+        from src.handlers.admin import receive_admin_username, remove_admin
         from src.handlers.suggest import is_user_admin
+        from src.utils.security import encrypt_id
         
         SUPER_ADMIN_ID = 123456789
         NEW_ADMIN_ID = 555666777
+        
+        # Seed Super Admin
+        async with AsyncSessionLocal() as session:
+            admin = Admin(encrypted_telegram_id=encrypt_id(SUPER_ADMIN_ID), role=AdminRole.SUPER_ADMIN)
+            session.add(admin)
+            await session.commit()
         
         # 1. Super admin adds new admin
         update = AsyncMock()
         context = AsyncMock()
         update.effective_user.id = SUPER_ADMIN_ID
         update.message.text = str(NEW_ADMIN_ID)
+        # Fix: Ensure forward attributes are None so it treats input as text
+        update.message.forward_origin = None 
+        update.message.forward_from = None
         
         with patch("src.utils.validators.Validators.validate_telegram_id", return_value=(True, NEW_ADMIN_ID, None)):
-            await receive_admin_id(update, context)
+            await receive_admin_username(update, context)
             
         # Verify Admin exists
+        expected_enc = encrypt_id(NEW_ADMIN_ID)
+        print(f"DEBUG: Test expects enc_id: {expected_enc}")
         async with AsyncSessionLocal() as session:
-            result = await session.execute(select(Admin).where(Admin.telegram_id == NEW_ADMIN_ID))
+            result = await session.execute(select(Admin).where(Admin.encrypted_telegram_id == expected_enc))
             new_admin = result.scalar_one()
-            self.assertEqual(new_admin.role, AdminRole.ADMIN)
+            self.assertEqual(new_admin.role, AdminRole.MODERATOR)
             new_admin_db_id = new_admin.id
             
         # 2. Check permission (Should be True)
@@ -190,7 +211,7 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
         
         # Verify Removed
         async with AsyncSessionLocal() as session:
-            result = await session.execute(select(Admin).where(Admin.telegram_id == NEW_ADMIN_ID))
+            result = await session.execute(select(Admin).where(Admin.encrypted_telegram_id == encrypt_id(NEW_ADMIN_ID)))
             self.assertIsNone(result.scalar_one_or_none())
             
         # 4. Check permission (Should be False)
@@ -254,14 +275,12 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
             
     async def test_duplicate_reporting(self):
         print("\nRunning test_duplicate_reporting...")
-        from src.handlers.instagram import i_reported
+        from src.handlers.instagram import i_reported_handler
         from src.database.models import UserReportLog, InstagramTarget, TargetStatus
-        from hashlib import sha256
-        from config import settings
+        from src.utils.security import encrypt_id
         
         USER_ID = 123456789
-        SALT = settings.encryption_key or "default_salt"
-        EXPECTED_HASH = sha256(f"{USER_ID}{SALT}".encode()).hexdigest()
+        EXPECTED_ENC_ID = encrypt_id(USER_ID)
         
         # Setup: Create target
         async with AsyncSessionLocal() as session:
@@ -276,18 +295,18 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
         context = AsyncMock()
 
         # 1. First Report (Should succeed)
-        await i_reported(update, context)
+        await i_reported_handler(update, context)
         
         # Verify 1 count and log exists
         async with AsyncSessionLocal() as session:
             target = (await session.execute(select(InstagramTarget).where(InstagramTarget.id == target_id))).scalar_one()
             self.assertEqual(target.anonymous_report_count, 1)
             
-            log = (await session.execute(select(UserReportLog).where(UserReportLog.user_hash == EXPECTED_HASH))).scalar_one()
+            log = (await session.execute(select(UserReportLog).where(UserReportLog.encrypted_user_id == EXPECTED_ENC_ID))).scalar_one()
             self.assertEqual(log.target_id, target_id)
             
         # 2. Duplicate Report (Should fail gracefully)
-        await i_reported(update, context)
+        await i_reported_handler(update, context)
         
         # Verify count is STILL 1
         async with AsyncSessionLocal() as session:
@@ -297,15 +316,13 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
             
     async def test_target_filtering(self):
         print("\nRunning test_target_filtering...")
-        from src.handlers.instagram import i_reported, show_targets_list
+        from src.handlers.instagram import i_reported_handler, show_targets_list
         from src.database.models import UserReportLog, InstagramTarget, TargetStatus
         from src.utils.keyboards import CallbackData
-        from hashlib import sha256
-        from config import settings
+        from src.utils.security import encrypt_id
         
         USER_ID = 998877665
-        SALT = settings.encryption_key or "default_salt"
-        EXPECTED_HASH = sha256(f"{USER_ID}{SALT}".encode()).hexdigest()
+        EXPECTED_ENC_ID = encrypt_id(USER_ID)
         
         # Setup: Create 2 targets
         async with AsyncSessionLocal() as session:
@@ -317,7 +334,7 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
             t2_id = t2.id
             
             # Pre-report t2 for this user
-            log = UserReportLog(target_id=t2_id, user_hash=EXPECTED_HASH)
+            log = UserReportLog(target_id=t2_id, encrypted_user_id=EXPECTED_ENC_ID)
             session.add(log)
             # t2 also needs count increment for consistency (though filter logic relies on log table)
             t2.anonymous_report_count = 1
@@ -367,10 +384,11 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
 
     async def test_quick_actions(self):
         print("\nRunning test_quick_actions...")
-        from src.handlers.instagram import i_reported, show_targets_list
+        from src.handlers.instagram import i_reported_handler, show_targets_list
         from src.handlers.admin import admin_process_closed_report
         from src.database.models import UserReportLog, InstagramTarget, TargetStatus, Victory
         from src.utils.keyboards import CallbackData
+        from src.utils.security import encrypt_id
         
         # Setup: Create Target
         async with AsyncSessionLocal() as session:
@@ -389,7 +407,7 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
         update.callback_query.from_user.id = 12345
         update.callback_query.data = CallbackData.TARGET_I_REPORTED.format(id=t_id)
         
-        await i_reported(update, context)
+        await i_reported_handler(update, context)
         
         # Verify db: Count incremented?
         async with AsyncSessionLocal() as session:
@@ -411,9 +429,10 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
         print("  - Testing Admin Confirmation...")
         
         # We need an admin for this step
+        # We need an admin for this step
         from src.database.models import Admin, AdminRole
         async with AsyncSessionLocal() as session:
-            admin = Admin(telegram_id=999, role=AdminRole.SUPER_ADMIN)
+            admin = Admin(encrypted_telegram_id=encrypt_id(999), role=AdminRole.SUPER_ADMIN)
             session.add(admin)
             await session.commit()
             
@@ -446,9 +465,10 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
         from telegram.ext import ConversationHandler
         
         # Setup: Create Target and Admin
+        from src.utils.security import encrypt_id
         async with AsyncSessionLocal() as session:
             t = InstagramTarget(ig_handle="concern_test", status=TargetStatus.ACTIVE, priority=1)
-            admin = Admin(telegram_id=888, role=AdminRole.SUPER_ADMIN)
+            admin = Admin(encrypted_telegram_id=encrypt_id(888), role=AdminRole.SUPER_ADMIN)
             session.add_all([t, admin])
             await session.commit()
             t_id = t.id
@@ -505,6 +525,220 @@ class TestE2EWorkflows(unittest.IsolatedAsyncioTestCase):
         self.assertIn("hate speech", args['text'])
         
         print("✅ test_concern_flow PASSED")
+
+    async def test_admin_direct_victory(self):
+        print("\nRunning test_admin_direct_victory...")
+        from src.handlers.instagram import concern_closed_handler
+        from src.database.models import InstagramTarget, TargetStatus, Admin, AdminRole, Victory
+        from src.utils.keyboards import CallbackData
+        from telegram.ext import ConversationHandler
+        from src.utils.security import encrypt_id
+        
+        # 1. Setup Admin and Target
+        ADMIN_ID = 999111
+        async with AsyncSessionLocal() as session:
+            t = InstagramTarget(ig_handle="direct_victory_test", status=TargetStatus.ACTIVE)
+            a = Admin(encrypted_telegram_id=encrypt_id(ADMIN_ID), role=AdminRole.ADMIN)
+            session.add_all([t, a])
+            await session.commit()
+            t_id = t.id
+            
+        context = AsyncMock()
+        context.bot.send_message = AsyncMock()
+        
+        update = AsyncMock()
+        update.callback_query.from_user.id = ADMIN_ID
+        update.callback_query.data = CallbackData.TARGET_CONCERN_CLOSED.format(id=t_id)
+        
+        # 2. Execute handler
+        state = await concern_closed_handler(update, context)
+        
+        # 3. Verify
+        self.assertEqual(state, ConversationHandler.END)
+        
+        async with AsyncSessionLocal() as session:
+            # Target should be REMOVED
+            target = await session.get(InstagramTarget, t_id)
+            self.assertEqual(target.status, TargetStatus.REMOVED)
+            
+            # Victory should exist
+            victory = (await session.execute(select(Victory).where(Victory.target_id == t_id))).scalar_one_or_none()
+            self.assertIsNotNone(victory)
+            
+        print("✅ test_admin_direct_victory PASSED")
+
+    async def test_concern_menu_admin_vs_user(self):
+        print("\nRunning test_concern_menu_admin_vs_user...")
+        from src.handlers.instagram import start_concern_report, CHOOSING_CONCERN
+        from src.database.models import InstagramTarget, TargetStatus, Admin, AdminRole
+        from src.utils.keyboards import CallbackData
+        from src.utils.security import encrypt_id
+        
+        ADMIN_ID = 777111
+        USER_ID = 777222
+        
+        async with AsyncSessionLocal() as session:
+            t = InstagramTarget(ig_handle="menu_test", status=TargetStatus.ACTIVE)
+            a = Admin(encrypted_telegram_id=encrypt_id(ADMIN_ID), role=AdminRole.ADMIN)
+            session.add_all([t, a])
+            await session.commit()
+            t_id = t.id
+            
+        context = AsyncMock()
+        context.bot.send_message = AsyncMock()
+        
+        # 1. Test for Admin
+        print("  - Testing for Admin...")
+        update_admin = AsyncMock()
+        update_admin.callback_query.from_user.id = ADMIN_ID
+        update_admin.callback_query.data = CallbackData.TARGET_REPORT_CLOSED.format(id=t_id)
+        
+        state_admin = await start_concern_report(update_admin, context)
+        self.assertEqual(state_admin, CHOOSING_CONCERN)
+        
+        # Verify 'Other' button is NOT in reply_markup
+        args, kwargs = update_admin.callback_query.edit_message_text.call_args
+        markup = kwargs['reply_markup']
+        buttons = [b.text for row in markup.inline_keyboard for b in row]
+        self.assertNotIn("💬 موارد دیگر", buttons)
+        self.assertIn("🏆 صفحه بسته شده", buttons)
+        
+        # 2. Test for Normal User
+        print("  - Testing for Normal User...")
+        update_user = AsyncMock()
+        update_user.callback_query.from_user.id = USER_ID
+        update_user.callback_query.data = CallbackData.TARGET_REPORT_CLOSED.format(id=t_id)
+        
+        state_user = await start_concern_report(update_user, context)
+        self.assertEqual(state_user, CHOOSING_CONCERN)
+        
+        # Verify 'Other' button IS in reply_markup
+        args, kwargs = update_user.callback_query.edit_message_text.call_args
+        markup = kwargs['reply_markup']
+        buttons = [b.text for row in markup.inline_keyboard for b in row]
+        self.assertIn("💬 موارد دیگر", buttons)
+        self.assertIn("🏆 صفحه بسته شده", buttons)
+        
+        print("✅ test_concern_menu_admin_vs_user PASSED")
+
+    async def test_admin_broadcast_bugfix(self):
+        print("\nRunning test_admin_broadcast_bugfix...")
+        from src.handlers.admin import admin_process_closed_report
+        from src.database.models import InstagramTarget, TargetStatus, Admin, AdminRole
+        from src.utils.keyboards import CallbackData
+        from src.utils.security import encrypt_id
+        
+        ADMIN_ID = 888111
+        USER_ID = 888222
+        async with AsyncSessionLocal() as session:
+            from src.database.models import UserConcernLog
+            t = InstagramTarget(ig_handle="broadcast_bug_test", status=TargetStatus.ACTIVE)
+            a = Admin(encrypted_telegram_id=encrypt_id(ADMIN_ID), role=AdminRole.ADMIN)
+            u = User(encrypted_chat_id=encrypt_id(USER_ID), victories=True) # Opted-in for victory notifications
+            session.add_all([t, a, u])
+            await session.commit()
+            t_id = t.id
+            
+            # Add a concern log for this user
+            log = UserConcernLog(target_id=t_id, encrypted_user_id=encrypt_id(USER_ID), concern_type="closed")
+            session.add(log)
+            await session.commit()
+            
+            # VERIFY USERS
+            res = await session.execute(select(User))
+            users = res.scalars().all()
+            print(f"DEBUG: TEST: Found {len(users)} users in DB")
+            for usr in users:
+                print(f"DEBUG: TEST: User {usr.id} victories={usr.victories} enc_id={usr.encrypted_chat_id}")
+            
+        context = AsyncMock()
+        context.bot.send_message = AsyncMock()
+        
+        update = AsyncMock()
+        update.effective_user.id = ADMIN_ID
+        update.callback_query.from_user.id = ADMIN_ID
+        update.callback_query.data = f"admin:closed_report:yes:{t_id}"
+        
+        # Execute handler
+        await admin_process_closed_report(update, context)
+        
+        # Verify
+        # Verify that send_message was called TWICE:
+        # 1. General broadcast (broadcast_victory)
+        # 2. Specific reporter notification (notify_victory_reporters)
+        self.assertEqual(context.bot.send_message.call_count, 2)
+        
+        # Verify first call (broadcast)
+        args1, kwargs1 = context.bot.send_message.call_args_list[0]
+        self.assertEqual(kwargs1['chat_id'], USER_ID)
+        self.assertIn("پیروزی جدید", kwargs1['text'])
+        
+        # Verify second call (individual notification)
+        args2, kwargs2 = context.bot.send_message.call_args_list[1]
+        self.assertEqual(kwargs2['chat_id'], USER_ID)
+        self.assertIn("گزارش شما تأیید شد", kwargs2['text'])
+        
+        print("✅ test_admin_broadcast_bugfix PASSED")
+
+    async def test_activity_tracking(self):
+        """Test the ActivityTracker middleware and 24h refresh rule."""
+        from src.utils.middleware import ActivityTracker
+        from src.database.models import User
+        import time
+        from datetime import datetime
+        
+        USER_ID = 999111
+        enc_id = encrypt_id(USER_ID)
+        
+        async with AsyncSessionLocal() as session:
+            # Add user with an old last_seen
+            old_date = datetime(2020, 1, 1)
+            u = User(encrypted_chat_id=enc_id, last_seen=old_date)
+            session.add(u)
+            await session.commit()
+            
+        tracker = ActivityTracker()
+        # Reset tracker state for this test if it's a singleton
+        tracker._cache = {} 
+        
+        update = AsyncMock()
+        update.effective_user.id = USER_ID
+        context = AsyncMock()
+        
+        # 1. First trigger - should update DB
+        await tracker(update, context)
+        
+        async with AsyncSessionLocal() as session:
+            res = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+            u = res.scalar_one()
+            self.assertGreater(u.last_seen.year, 2020)
+            first_update_time = u.last_seen
+            
+        # 2. Immediate second trigger - should be CACHED (no DB hit)
+        # We can verify this by manually changing the DB value and seeing if it stays changed
+        async with AsyncSessionLocal() as session:
+            await session.execute(update_sqla(User).where(User.encrypted_chat_id == enc_id).values(last_seen=old_date))
+            await session.commit()
+            
+        await tracker(update, context)
+        
+        async with AsyncSessionLocal() as session:
+            res = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+            u = res.scalar_one()
+            self.assertEqual(u.last_seen, old_date) # Still old because tracker cached the recent update
+            
+        # 3. Trigger after 24h+ - should update DB again
+        # Mock the cache to think last update was 25 hours ago
+        tracker._cache[USER_ID] = time.time() - (25 * 3600)
+        
+        await tracker(update, context)
+        
+        async with AsyncSessionLocal() as session:
+            res = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+            u = res.scalar_one()
+            self.assertGreater(u.last_seen, old_date)
+            
+        print("✅ test_activity_tracking PASSED")
 
 if __name__ == "__main__":
     unittest.main()

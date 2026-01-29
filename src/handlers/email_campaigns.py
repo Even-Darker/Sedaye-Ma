@@ -12,14 +12,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def get_user_hash(user_id: int) -> str:
-    """Create hash from user ID for privacy."""
-    return hashlib.sha256(str(user_id).encode()).hexdigest()
+
+from src.database.models import User
+from src.utils.security import encrypt_id
+
+async def get_user_encrypted_id(session, user_id: int) -> str:
+    """Get canonical encrypted ID for user."""
+    enc_id = encrypt_id(user_id)
+    # User stores encrypted_chat_id directly. If user not in DB, we can still use this ID.
+    # But checking DB confirms registration.
+    res = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+    user = res.scalar_one_or_none()
+    
+    # If user not found, use generated enc_id anyway (it's deterministic)
+    return enc_id
 
 
-async def get_user_completed_campaign_ids(session, user_hash: str) -> set:
+async def get_user_completed_campaign_ids(session, enc_id: str) -> set:
     """Get set of campaign IDs the user has completed."""
-    stmt = select(UserEmailAction.campaign_id).where(UserEmailAction.user_hash == user_hash)
+    if not enc_id: return set()
+    stmt = select(UserEmailAction.campaign_id).where(UserEmailAction.encrypted_user_id == enc_id)
     result = await session.execute(stmt)
     return {row[0] for row in result.fetchall()}
 
@@ -103,7 +115,6 @@ async def list_email_campaigns(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
     
     user_id = update.effective_user.id
-    user_hash = get_user_hash(user_id)
     
     # Parse page
     page = 0
@@ -117,7 +128,8 @@ async def list_email_campaigns(update: Update, context: ContextTypes.DEFAULT_TYP
     offset = page * limit
     
     async with get_db() as session:
-        completed_ids = await get_user_completed_campaign_ids(session, user_hash)
+        enc_id = await get_user_encrypted_id(session, user_id)
+        completed_ids = await get_user_completed_campaign_ids(session, enc_id)
         
         # Count total
         count_stmt = select(EmailCampaign).where(EmailCampaign.is_active == True)
@@ -139,7 +151,7 @@ async def list_email_campaigns(update: Update, context: ContextTypes.DEFAULT_TYP
         # Get page item
         stmt = (
             select(EmailCampaign)
-            .outerjoin(UserEmailAction, (EmailCampaign.id == UserEmailAction.campaign_id) & (UserEmailAction.user_hash == user_hash))
+            .outerjoin(UserEmailAction, (EmailCampaign.id == UserEmailAction.campaign_id) & (UserEmailAction.encrypted_user_id == enc_id))
             .where(EmailCampaign.is_active == True)
             .order_by(UserEmailAction.id.isnot(None), EmailCampaign.created_at.desc())
             .offset(offset)
@@ -172,12 +184,12 @@ async def list_email_campaigns(update: Update, context: ContextTypes.DEFAULT_TYP
 async def list_email_campaigns_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """List email campaigns from text menu."""
     user_id = update.effective_user.id
-    user_hash = get_user_hash(user_id)
     
     limit = 1
     
     async with get_db() as session:
-        completed_ids = await get_user_completed_campaign_ids(session, user_hash)
+        enc_id = await get_user_encrypted_id(session, user_id)
+        completed_ids = await get_user_completed_campaign_ids(session, enc_id)
         
         count_stmt = select(EmailCampaign).where(EmailCampaign.is_active == True)
         total_count = len((await session.execute(count_stmt)).scalars().all())
@@ -185,7 +197,7 @@ async def list_email_campaigns_text(update: Update, context: ContextTypes.DEFAUL
         
         stmt = (
             select(EmailCampaign)
-            .outerjoin(UserEmailAction, (EmailCampaign.id == UserEmailAction.campaign_id) & (UserEmailAction.user_hash == user_hash))
+            .outerjoin(UserEmailAction, (EmailCampaign.id == UserEmailAction.campaign_id) & (UserEmailAction.encrypted_user_id == enc_id))
             .where(EmailCampaign.is_active == True)
             .order_by(UserEmailAction.id.isnot(None), EmailCampaign.created_at.desc())
             .limit(limit)
@@ -218,13 +230,16 @@ async def track_email_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     page = int(parts[3]) if len(parts) > 3 else 0
     
     user_id = update.effective_user.id
-    user_hash = get_user_hash(user_id)
     
     async with get_db() as session:
+        enc_id = await get_user_encrypted_id(session, user_id)
+        if not enc_id:
+             enc_id = encrypt_id(user_id) # Fallback if user somehow not in DB
+
         # Check if already acted
         stmt = select(UserEmailAction).where(
             UserEmailAction.campaign_id == campaign_id,
-            UserEmailAction.user_hash == user_hash
+            UserEmailAction.encrypted_user_id == enc_id
         )
         existing = (await session.execute(stmt)).scalar_one_or_none()
         
@@ -233,7 +248,7 @@ async def track_email_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
             
         # Record action
-        action = UserEmailAction(campaign_id=campaign_id, user_hash=user_hash)
+        action = UserEmailAction(campaign_id=campaign_id, encrypted_user_id=enc_id)
         session.add(action)
         
         campaign_result = await session.execute(
@@ -253,7 +268,7 @@ async def track_email_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         async with get_db() as session:
             # Re-fetch everything to ensure fresh state
-            completed_ids = await get_user_completed_campaign_ids(session, user_hash)
+            completed_ids = await get_user_completed_campaign_ids(session, enc_id)
             
             limit = 1
             # Recalculate total pages/offset logic as in list function
@@ -267,7 +282,7 @@ async def track_email_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             stmt = (
                 select(EmailCampaign)
-                .outerjoin(UserEmailAction, (EmailCampaign.id == UserEmailAction.campaign_id) & (UserEmailAction.user_hash == user_hash))
+                .outerjoin(UserEmailAction, (EmailCampaign.id == UserEmailAction.campaign_id) & (UserEmailAction.encrypted_user_id == enc_id))
                 .where(EmailCampaign.is_active == True)
                 .order_by(UserEmailAction.id.isnot(None), EmailCampaign.created_at.desc())
                 .offset(offset)

@@ -36,33 +36,8 @@ async def show_report_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
-    guide = """
-📱 *آموزش گزارش در اینستاگرام*
-
-*مراحل گزارش:*
-
-1️⃣ به پروفایل صفحه مورد نظر بروید
-
-2️⃣ روی ⋯ \\(سه نقطه\\) در بالای صفحه کلیک کنید
-
-3️⃣ گزینه "Report" را انتخاب کنید
-
-4️⃣ "Report Account" را انتخاب کنید
-
-5️⃣ دلیل گزارش را انتخاب کنید:
-   \\- Violence or dangerous organizations
-   \\- Hate speech or symbols
-   \\- Bullying or harassment
-
-6️⃣ قالب گزارش را از بخش "قالب‌ها" کپی کنید
-
-7️⃣ گزارش را ارسال کنید
-
-💡 *نکته:* گزارش‌های متعدد از حساب‌های مختلف تأثیر بیشتری دارند\\.
-"""
-    
     await query.edit_message_text(
-        guide,
+        Messages.GUIDE_REPORT_IG_TEXT,
         parse_mode="MarkdownV2",
         reply_markup=Keyboards.back_to_main()
     )

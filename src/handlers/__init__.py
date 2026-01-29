@@ -12,6 +12,7 @@ from .settings import settings_handlers
 from .admin import admin_handlers
 from .suggest import suggest_handlers
 from .text_menu import text_menu_handler
+from .admin_stats import admin_stats
 from .removal import report_removal_conversation
 
 from .email_campaigns import list_email_campaigns, track_email_action, show_email_details, show_invalid_email_alert
@@ -46,5 +47,6 @@ __all__ = [
     'text_menu_handler',
     'report_removal_conversation',
     'email_campaign_handlers',
+    'admin_stats',
 ]
 

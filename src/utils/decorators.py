@@ -10,7 +10,7 @@ from config import settings, Messages
 from src.database import get_db, Admin
 from src.database.models import AdminRole
 from sqlalchemy import select
-
+from src.utils.security import encrypt_id
 
 def admin_required(func):
     """
@@ -20,11 +20,13 @@ def admin_required(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user_id = update.effective_user.id
+        from src.utils.security import encrypt_id
+        enc_id = encrypt_id(user_id)
         
         # Check database directly
         async with get_db() as session:
             result = await session.execute(
-                select(Admin).where(Admin.telegram_id == user_id)
+                select(Admin).where(Admin.encrypted_telegram_id == enc_id)
             )
             admin = result.scalar_one_or_none()
             
@@ -50,12 +52,14 @@ def super_admin_required(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user_id = update.effective_user.id
+        from src.utils.security import encrypt_id
+        enc_id = encrypt_id(user_id)
         
         # Check database for super_admin role
         async with get_db() as session:
             result = await session.execute(
                 select(Admin).where(
-                    Admin.telegram_id == user_id,
+                    Admin.encrypted_telegram_id == enc_id,
                     Admin.role == AdminRole.SUPER_ADMIN
                 )
             )

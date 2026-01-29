@@ -12,11 +12,15 @@ import os
 # Add parent directory to path to allow imports from config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from telegram import BotCommand
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
+from telegram import BotCommand, Update, BotCommandScopeChat, BotCommandScopeDefault
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters, TypeHandler
+
+from sqlalchemy import select
 
 from config import settings
-from src.database import init_db
+from src.database import init_db, Admin, get_db
+from src.utils.security import decrypt_id
+from src.utils.middleware import ActivityTracker
 from src.handlers import (
     start_handler,
     start_callback_handler,
@@ -34,6 +38,7 @@ from src.handlers import (
     report_removal_conversation,
     text_menu_handler,
     email_campaign_handlers,
+    admin_stats,
 )
 
 
@@ -61,13 +66,44 @@ async def post_init(application: Application) -> None:
     await init_db()
     logger.info("Database initialized successfully!")
     
-    # Set bot commands
-    commands = [
+    # Define command sets
+    user_commands = [
         BotCommand("start", "شروع ربات"),
         BotCommand("help", "راهنما"),
     ]
-    await application.bot.set_my_commands(commands)
-    logger.info("Bot commands set successfully!")
+    
+    admin_commands = [
+        BotCommand("start", "شروع ربات"),
+        BotCommand("stat", "آمار (ادمین)"),
+        BotCommand("help", "راهنما"),
+    ]
+    
+    # 1. Reset/Clear wider scopes to ensure no "leaks" from previous sessions
+    from telegram import BotCommandScopeAllPrivateChats
+    await application.bot.delete_my_commands(scope=BotCommandScopeDefault())
+    await application.bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
+    
+    # 2. Set default commands for everyone (normal users)
+    await application.bot.set_my_commands(user_commands, scope=BotCommandScopeDefault())
+    await application.bot.set_my_commands(user_commands, scope=BotCommandScopeDefault(), language_code="fa")
+    
+    # 3. Set custom commands for each admin
+    async with get_db() as session:
+        result = await session.execute(select(Admin.encrypted_telegram_id))
+        admin_ids = result.scalars().all()
+        
+        for enc_id in admin_ids:
+            try:
+                chat_id = decrypt_id(enc_id)
+                if chat_id:
+                    await application.bot.set_my_commands(
+                        admin_commands, 
+                        scope=BotCommandScopeChat(chat_id=chat_id)
+                    )
+            except Exception as e:
+                logger.error(f"Failed to set commands for admin {enc_id}: {e}")
+                
+    logger.info("Bot commands set successfully (Conditional Visibility)!")
 
 
 def main():
@@ -90,6 +126,9 @@ def main():
         .build()
     )
     
+    # Register Activity Tracker (Middleware)
+    application.add_handler(TypeHandler(Update, ActivityTracker()), group=-1)
+
     # Register handlers
     # Start command and main menu button
     from src.handlers.start import help_command_handler
@@ -152,6 +191,7 @@ def main():
         application.add_handler(handler)
 
     # Admin handlers (must be last to not interfere with conversations)
+    application.add_handler(CommandHandler("stat", admin_stats))
     for handler in admin_handlers:
         application.add_handler(handler)
         

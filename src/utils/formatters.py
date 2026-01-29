@@ -73,7 +73,7 @@ class Formatters:
         return f"""
 {priority_label}
 
-*@{Formatters.escape_markdown(target.ig_handle)}*
+[*@{Formatters.escape_markdown(target.ig_handle)}*](https://instagram.com/{target.ig_handle})
 {Formatters.escape_markdown(target.display_name or '')}
 
 📊 {report_count} {Messages.TARGET_REPORTS}
@@ -92,7 +92,7 @@ class Formatters:
         return f"""
 🎉 *{Messages.LATEST_VICTORY}*:
 
-@{Formatters.escape_markdown(target.ig_handle)} \\- {Messages.VICTORY_REMOVED}
+[@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle}) \\- {Messages.VICTORY_REMOVED}
 🗓️ {Formatters.escape_markdown(date_str)}
 
 "{Messages.VICTORY_CELEBRATE}" 🔥
@@ -193,3 +193,15 @@ class Formatters:
 
 📝 توضیحات: {Formatters.escape_markdown(petition.description)}
 """
+
+    @staticmethod
+    def format_petition_share(petition) -> str:
+        """Format a petition for social media sharing."""
+        return f"""🦁 صدای ما! 🦁
+
+📝 پتیشن: {petition.title}
+
+🔗 {petition.url}
+
+✨ به ربات صدای ما بپیوندید تا با هم قوی‌تر شویم و اقدامات جمعی انجام دهیم! 🤝☀️
+🔗 https://t.me/Sedaye_Ma_Bot"""
