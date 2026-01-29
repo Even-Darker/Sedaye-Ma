@@ -651,14 +651,11 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
 async def handle_shared_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the user_shared service message for admin promotion."""
     
-    if not update.message or not update.message.user_shared:
+    if not update.message or not update.message.users_shared:
         return ADDING_ADMIN_ID
         
-    shared_user = update.message.user_shared
+    shared_user = update.message.users_shared.users[0]
     new_admin_id = shared_user.user_id
-    
-    # Try to get some name if possible, else use ID
-    display_name = f"Shared User ({new_admin_id})"
     
     # Remove the reply keyboard
     await update.message.reply_text(
@@ -667,10 +664,10 @@ async def handle_shared_user(update: Update, context: ContextTypes.DEFAULT_TYPE)
         parse_mode="MarkdownV2"
     )
     
-    return await _promote_user_to_admin(update, context, new_admin_id, display_name)
+    return await _promote_user_to_admin(update, context, new_admin_id)
 
 
-async def _promote_user_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE, new_admin_id: int, display_name: str):
+async def _promote_user_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE, new_admin_id: int):
     """Internal helper to promote a user to admin."""
     user_id = update.effective_user.id
     from src.database.models import Admin, AdminRole
@@ -708,10 +705,9 @@ async def _promote_user_to_admin(update: Update, context: ContextTypes.DEFAULT_T
         )
         session.add(new_admin)
         await session.commit()
+        
     await update.message.reply_text(
-        f"✅ *ادمین جدید اضافه شد*\n\n"
-        f"کاربر: {Formatters.escape_markdown(str(display_name))}\n"
-        f"شناسه: `{new_admin_id}`",
+        f"✅ *ادمین جدید اضافه شد*\n\n",
         parse_mode="MarkdownV2",
         reply_markup=Keyboards.main_menu_persistent(is_admin=True) # Restore bottom keyboard
     )
