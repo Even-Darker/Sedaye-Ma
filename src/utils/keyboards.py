@@ -454,7 +454,7 @@ class Keyboards:
             #     InlineKeyboardButton(Messages.ADMIN_MANAGE_TARGETS, callback_data=CallbackData.ADMIN_MANAGE_TARGETS)
             # ],
             [
-                InlineKeyboardButton(f"{Messages.ADMIN_PENDING_TARGETS}{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)
+                InlineKeyboardButton(f"{Messages.ADMIN_MANAGE_TARGETS}{pending_badge}", callback_data=CallbackData.ADMIN_PENDING_TARGETS)
             ],
             [
                 InlineKeyboardButton(f"📄 گزارش‌ها و پیام‌ها{reports_badge}", callback_data=CallbackData.ADMIN_REPORTS),
