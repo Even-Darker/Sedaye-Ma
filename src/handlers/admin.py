@@ -651,10 +651,10 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
 async def handle_shared_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the user_shared service message for admin promotion."""
     
-    if not update.message or not update.message.users_shared:
+    if not update.message or not update.message.user_shared:
         return ADDING_ADMIN_ID
         
-    shared_user = update.message.users_shared.users[0]
+    shared_user = update.message.user_shared
     new_admin_id = shared_user.user_id
     
     # Try to get some name if possible, else use ID
