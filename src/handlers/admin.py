@@ -173,7 +173,8 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
         await loading_msg.edit_text(
             f"⚠️ *فرمت نامعتبر است*\n\n"
             "لطفاً یک handle معتبر وارد کنید:",
-            parse_mode="MarkdownV2"
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.back_to_admin()
         )
         return ADDING_TARGET_HANDLE
     
@@ -207,7 +208,8 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
              await loading_msg.edit_text(
                 f"⚠️ *فرمت handle نامعتبر است*\n\n"
                 f"خطا: {Formatters.escape_markdown(format_error)}\n",
-                parse_mode="MarkdownV2"
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.back_to_admin()
             )
              return ADDING_TARGET_HANDLE
 
@@ -217,7 +219,8 @@ async def receive_target_handle(update: Update, context: ContextTypes.DEFAULT_TY
             await loading_msg.edit_text(
                 f"❌ *صفحه پیدا نشد*\n\n"
                 f"صفحه @{Formatters.escape_markdown(handle)} در اینستاگرام وجود ندارد\\.",
-                parse_mode="MarkdownV2"
+                parse_mode="MarkdownV2",
+                reply_markup=Keyboards.back_to_admin()
             )
             return ADDING_TARGET_HANDLE
             

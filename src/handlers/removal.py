@@ -52,7 +52,8 @@ async def receive_removal_handle(update: Update, context: ContextTypes.DEFAULT_T
     if not is_valid:
         await loading_msg.edit_text(
             "⚠️ *فرمت نامعتبر*\nلطفاً یک handle معتبر وارد کنید:",
-            parse_mode="MarkdownV2"
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.back_to_sandisi()
         )
         return REPORT_HANDLE
     
