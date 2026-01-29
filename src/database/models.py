@@ -430,7 +430,8 @@ class EmailCampaign(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     
-    receiver_email = Column(String(255), nullable=False)
+    # Text type to support multiple receivers and long lists
+    receiver_email = Column(Text, nullable=False)
     subject = Column(String(255), nullable=False)
     body = Column(Text, nullable=False)
     
@@ -447,16 +448,20 @@ class EmailCampaign(Base):
         
     @property
     def mailto_link(self) -> str:
-        """Generate mailto link."""
+        """Generate mailto link with cleaned recipients."""
         from urllib.parse import quote
+        # Clean up recipients (remove spaces after commas)
+        recipients = ",".join([e.strip() for e in self.receiver_email.split(",")])
         safe_subject = quote(self.subject)
         safe_body = quote(self.body)
-        return f"mailto:{self.receiver_email}?subject={safe_subject}&body={safe_body}"
+        return f"mailto:{recipients}?subject={safe_subject}&body={safe_body}"
 
     @property
     def redirect_link(self) -> str:
+        """Generate redirect link with cleaned recipients."""
         from urllib.parse import quote
-        safe_to = quote(self.receiver_email)
+        recipients = ",".join([e.strip() for e in self.receiver_email.split(",")])
+        safe_to = quote(recipients)
         safe_subject = quote(self.subject)
         safe_body = quote(self.body)
         return f"https://even-darker.github.io/Email-Redirector/?to={safe_to}&subject={safe_subject}&body={safe_body}"

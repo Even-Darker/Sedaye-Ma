@@ -27,7 +27,7 @@ async def manage_emails(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Parse page
     page = 0
-    if ":" in query.data and query.data.split(":")[-1].isdigit():
+    if query.data.startswith(f"{CallbackData.ADMIN_MANAGE_EMAILS}:") and query.data.split(":")[-1].isdigit():
         page = int(query.data.split(":")[-1])
 
     limit = 5
@@ -147,7 +147,8 @@ async def receive_email_title(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def receive_email_desc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["new_email_desc"] = update.message.text.strip()
     await update.message.reply_text(
-        "📬 آدرس *ایمیل گیرنده* را وارد کنید:\n\(مثلاً: info@un\.org\)",
+        "📬 آدرس یا آدرس‌های *ایمیل گیرندگان* را وارد کنید:\n"
+        "\(برای ارسال به چند نفر، ایمیل‌ها را با ویرگول جدا کنید: `a@b\.com, c@d\.com`\)",
         parse_mode="MarkdownV2",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(Messages.CANCEL_ACTION, callback_data=CallbackData.BACK_MAIN)]])
     )
