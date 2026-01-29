@@ -533,9 +533,11 @@ class Keyboards:
         """List of admins with remove buttons."""
         buttons = []
         for admin in admins:
+            from src.utils.security import decrypt_id
+            decrypted = decrypt_id(admin.encrypted_telegram_id)
             buttons.append([
                 InlineKeyboardButton(
-                    f"❌ {admin.telegram_id} ({admin.role.value})",
+                    f"❌ {decrypted} ({admin.role.value})",
                     callback_data=CallbackData.ADMIN_REMOVE_ADMIN.format(id=admin.id)
                 )
             ])

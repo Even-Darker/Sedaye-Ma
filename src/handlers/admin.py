@@ -38,12 +38,16 @@ ADDING_CONFIG_URI = 6
 ADDING_CONFIG_DESC = 7
 
 
+
 async def is_super_admin(user_id: int) -> bool:
     """Check if user is a super admin (Database only)."""
+    from src.utils.security import encrypt_id
+    enc_id = encrypt_id(user_id)
+    
     async with get_db() as session:
         result = await session.execute(
             select(Admin).where(
-                Admin.telegram_id == user_id,
+                Admin.encrypted_telegram_id == enc_id,
                 Admin.role == AdminRole.SUPER_ADMIN
             )
         )
@@ -525,7 +529,9 @@ async def manage_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message += "_برای حذف ادمین، روی آن کلیک کنید:_\n\n"
             for admin in admins:
                 # Escape values to prevent Markdown errors
-                safe_id = Formatters.escape_markdown(str(admin.telegram_id))
+                from src.utils.security import decrypt_id
+                decrypted = decrypt_id(admin.encrypted_telegram_id)
+                safe_id = Formatters.escape_markdown(str(decrypted))
                 safe_role = Formatters.escape_markdown(admin.role.value)
                 message += f"• {safe_id} \\({safe_role}\\)\n"
         else:
@@ -635,10 +641,14 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
         )
         return ADDING_ADMIN_ID
     
+
     async with get_db() as session:
         # Check if already exists
+        from src.utils.security import encrypt_id
+        enc_id = encrypt_id(new_admin_id)
+        
         result = await session.execute(
-            select(Admin).where(Admin.telegram_id == new_admin_id)
+            select(Admin).where(Admin.encrypted_telegram_id == enc_id)
         )
         if result.scalar_one_or_none():
             await update.message.reply_text(
@@ -649,7 +659,7 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
         
         # Add new admin
         new_admin = Admin(
-            telegram_id=new_admin_id,
+            encrypted_telegram_id=enc_id,
             role=AdminRole.MODERATOR # Default role
         )
         session.add(new_admin)
@@ -669,6 +679,7 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
 async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Remove an admin."""
     query = update.callback_query
+    from src.utils.security import decrypt_id
     
     admin_id = int(query.data.split(":")[-1])
     
@@ -687,7 +698,7 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("⛔ ادمین‌های اصلی قابل حذف نیستند", show_alert=True)
             return
         
-        telegram_id = admin.telegram_id
+        telegram_id = decrypt_id(admin.encrypted_telegram_id)
         await session.delete(admin)
         await session.commit()
         
@@ -873,7 +884,7 @@ async def manage_configs(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Show FULL URI in code block for easy copying
             
-            message += f"*{index}\.* {Formatters.escape_markdown(desc)}{report_badge}\n"
+            message += f"*{index}\\.* {Formatters.escape_markdown(desc)}{report_badge}\n"
             message += f"`{Formatters.escape_markdown(config.config_uri)}`\n\n"
             
             keyboard.append([InlineKeyboardButton(
@@ -1469,7 +1480,7 @@ admin_handlers = [
     CallbackQueryHandler(delete_config, pattern=r"^admin:delete_config:\d+$"),
     
     # Email Campaigns Management
-    CallbackQueryHandler(manage_emails, pattern=f"^{CallbackData.ADMIN_MANAGE_EMAILS}(:\d+)?$"),
+    CallbackQueryHandler(manage_emails, pattern=rf"^{CallbackData.ADMIN_MANAGE_EMAILS}(:\d+)?$"),
     CallbackQueryHandler(delete_email_handler, pattern=r"^admin:delete_email:\d+$"),
     CallbackQueryHandler(view_email_admin_handler, pattern=r"^admin:email:view:\d+$"),
 
