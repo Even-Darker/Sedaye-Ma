@@ -2,7 +2,7 @@
 Admin handlers for Sedaye Ma bot.
 Protected commands for managing the bot.
 """
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ContextTypes, CommandHandler, CallbackQueryHandler, 
     MessageHandler, filters, ConversationHandler
@@ -564,11 +564,15 @@ async def start_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.edit_message_text(
         "➕ *افزودن ادمین جدید*\n\n"
-        "لطفاً یکی از موارد زیر را ارسال کنید:\n\n"
-        "1️⃣ نام کاربری \\(@username\\)\n"
-        "2️⃣ شناسه عددی \\(User ID\\)\n"
-        "3️⃣ *فوروارد کردن یک پیام از کاربر*",
+        "شما می‌توانید با استفاده از دکمه زیر، کاربر مورد نظر را از لیست مخاطبان خود انتخاب کنید یا نام کاربری او را جستجو کنید\\.\n\n"
+        "⚠️ *توجه:* کاربر مورد نظر باید قبلاً ربات را استارت کرده باشد\\.",
         parse_mode="MarkdownV2"
+    )
+    
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="👇 لطفاً از دکمه زیر استفاده کنید:",
+        reply_markup=Keyboards.request_admin_user()
     )
     
     return ADDING_ADMIN_ID
@@ -641,9 +645,37 @@ async def receive_admin_username(update: Update, context: ContextTypes.DEFAULT_T
             )
             return ADDING_ADMIN_ID
             
-    if not new_admin_id:
-         await update.message.reply_text("❌ خطای نامشخص", parse_mode="MarkdownV2")
-         return ADDING_ADMIN_ID
+    return await _promote_user_to_admin(update, context, new_admin_id, display_name)
+
+
+async def handle_shared_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the user_shared service message for admin promotion."""
+    
+    if not update.message or not update.message.users_shared:
+        return ADDING_ADMIN_ID
+        
+    shared_user = update.message.users_shared.users[0]
+    new_admin_id = shared_user.user_id
+    
+    # Try to get some name if possible, else use ID
+    display_name = f"Shared User ({new_admin_id})"
+    
+    # Remove the reply keyboard
+    await update.message.reply_text(
+        "⏳ در حال پردازش انتخاب شما\\.\\.\\.",
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode="MarkdownV2"
+    )
+    
+    return await _promote_user_to_admin(update, context, new_admin_id, display_name)
+
+
+async def _promote_user_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE, new_admin_id: int, display_name: str):
+    """Internal helper to promote a user to admin."""
+    user_id = update.effective_user.id
+    from src.database.models import Admin, AdminRole
+    from src.database.connection import get_db
+    from sqlalchemy import select
     
     # Check if it's themselves
     if new_admin_id == user_id:
@@ -967,6 +999,7 @@ add_admin_conversation = ConversationHandler(
     states={
         ADDING_ADMIN_ID: [
             MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex(MENU_PATTERN), receive_admin_username),
+            MessageHandler(filters.StatusUpdate.USER_SHARED, handle_shared_user),
         ],
     },
     fallbacks=[

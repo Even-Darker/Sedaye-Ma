@@ -58,3 +58,32 @@ def decrypt_id(token: str) -> int:
     except Exception as e:
         logger.error(f"Decryption failed: {e}")
         return None
+def encrypt_string(text: str) -> str:
+    """
+    Encrypts a string using AES-SIV (Deterministic).
+    Returns base64 encoded string.
+    """
+    if text is None:
+        return None
+    try:
+        cipher = get_cipher()
+        ciphertext = cipher.encrypt(text.encode(), associated_data=None)
+        return base64.urlsafe_b64encode(ciphertext).decode()
+    except Exception as e:
+        logger.error(f"String encryption failed: {e}")
+        return None
+
+def decrypt_string(token: str) -> str:
+    """
+    Decrypts a deterministic token back to string.
+    """
+    if not token:
+        return None
+    try:
+        cipher = get_cipher()
+        ciphertext = base64.urlsafe_b64decode(token)
+        plaintext = cipher.decrypt(ciphertext, associated_data=None)
+        return plaintext.decode()
+    except Exception as e:
+        logger.error(f"String decryption failed: {e}")
+        return None

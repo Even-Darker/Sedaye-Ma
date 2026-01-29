@@ -2,7 +2,7 @@
 Telegram keyboard builders for Sedaye Ma bot.
 All keyboards are defined here for consistency.
 """
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo, KeyboardButtonRequestUsers, ReplyKeyboardRemove
 from config import Messages
 
 
@@ -672,3 +672,24 @@ class Keyboards:
             [InlineKeyboardButton("❌ حذف کمپین", callback_data=CallbackData.ADMIN_DELETE_EMAIL.format(id=campaign_id))],
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.ADMIN_MANAGE_EMAILS)]
         ])
+    
+    @staticmethod
+    def request_admin_user() -> ReplyKeyboardMarkup:
+        """Keyboard to request a single user for admin promotion."""
+        return ReplyKeyboardMarkup(
+            [
+                [
+                    KeyboardButton(
+                        "👤 انتخاب کاربر برای ادمین",
+                        request_users=KeyboardButtonRequestUsers(
+                            request_id=1,
+                            user_is_bot=False,
+                            max_quantity=1
+                        )
+                    )
+                ],
+                [KeyboardButton(Messages.CANCEL_ACTION)]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
