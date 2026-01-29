@@ -509,8 +509,8 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
             try:
                 await context.bot.send_message(
                     chat_id=decrypt_id(admin.encrypted_telegram_id),
-                    text=f"🚨 *گزارش بسته شدن صفحه*\n\nSandisi: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
-                    parse_mode="HTML",
+                    text=f"🚨 *گزارش بسته شدن صفحه*\n\nSandisi: [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle})\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",
+                    parse_mode="MarkdownV2",
                     reply_markup=Keyboards.admin_confirm_closed(target.id)
                 )
             except Exception:
@@ -598,8 +598,8 @@ async def receive_concern_message(update: Update, context: ContextTypes.DEFAULT_
                 from src.utils.security import decrypt_id
                 await context.bot.send_message(
                     chat_id=decrypt_id(admin.encrypted_telegram_id),
-                    text=f"📨 *پیام کاربر (مشکل صفحه)*\n\n👤 کاربر: ناشناس (Anonymous)\nTarget: @{target.ig_handle if target else 'Unknown'}\n\n💬 پیام:\n{text}",
-                    parse_mode="HTML"
+                    text=f"📨 *پیام کاربر (مشکل صفحه)*\n\n👤 کاربر: ناشناس \\(Anonymous\\)\nTarget: [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle})\n\n💬 پیام:\n{Formatters.escape_markdown(text)}",
+                    parse_mode="MarkdownV2"
                 )
             except Exception:
                 pass

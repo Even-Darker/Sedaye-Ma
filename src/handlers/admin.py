@@ -1400,7 +1400,7 @@ async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Announce victory to admin
         await query.edit_message_text(
             f"🎉 *پیروزی ثبت شد\\!*\n\n"
-            f"صفحه @{Formatters.escape_markdown(target.ig_handle)} به لیست پیروزی‌ها اضافه شد\\.\n"
+            f"صفحه [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle}) به لیست پیروزی‌ها اضافه شد\\.\n"
             f"آمار ربات به‌روزرسانی شد\\.",
             parse_mode="MarkdownV2"
         )

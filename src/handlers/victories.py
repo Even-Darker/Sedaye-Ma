@@ -111,7 +111,7 @@ async def view_all_victories(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             if target:
                 date = victory.victory_date.strftime("%Y/%m/%d")
-                message += f"✅ @{Formatters.escape_markdown(target.ig_handle)} \\- {Formatters.escape_markdown(date)}\n"
+                message += f"✅ [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle}) \\- {Formatters.escape_markdown(date)}\n"
         
         if not victories:
             message += "_هنوز پیروزی ثبت نشده است\\._"
