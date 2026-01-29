@@ -35,7 +35,9 @@ async def run_migration():
             "user_concern_logs",
             "user_victory_logs",
             "user_config_reports",
-            "user_email_actions"
+            "user_config_reports",
+            "user_email_actions",
+            "email_campaigns"
         ]
         
         existing_tables = await conn.run_sync(lambda sync_conn: sync_conn.dialect.get_table_names(sync_conn))
@@ -169,6 +171,22 @@ async def run_migration():
             logger.info(f"Migrated {len(prefs)} users.")
             # Drop old table
             await conn.execute(text("DROP TABLE notification_preferences_old"))
+
+        # Migrate Email Campaigns
+        if "email_campaigns_old" in current_tables:
+            logger.info("Migrating Email Campaigns...")
+            await conn.execute(text("""
+                INSERT INTO email_campaigns (
+                    id, title, description, receiver_email, subject, body, 
+                    action_count, is_active, created_at, created_by_admin_id
+                )
+                SELECT 
+                    id, title, description, receiver_email, subject, body, 
+                    action_count, is_active, created_at, created_by_admin_id
+                FROM email_campaigns_old
+            """))
+            logger.info("Migrated email campaigns.")
+            await conn.execute(text("DROP TABLE email_campaigns_old"))
 
         await conn.commit()
         logger.info("Migration Complete! 🚀")
