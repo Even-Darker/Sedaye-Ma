@@ -769,12 +769,11 @@ async def cancel_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE
     return ConversationHandler.END
 
 
-# Global Menu Pattern for Fallbacks
 MENU_PATTERN = re.compile(f"^({'|'.join(map(re.escape, [
     Messages.MENU_TARGETS, Messages.MENU_ANNOUNCEMENTS, 
     Messages.MENU_PETITIONS, Messages.MENU_SOLIDARITY, 
     Messages.MENU_RESOURCES, Messages.MENU_SETTINGS, 
-    Messages.ADMIN_HEADER
+    Messages.ADMIN_HEADER, Messages.CANCEL_ACTION
 ]))})$")
 
 
@@ -802,7 +801,7 @@ async def handle_menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYP
         await resources.show_resources(update, context)
     elif text == Messages.MENU_SETTINGS:
         await settings.show_settings(update, context)
-    elif text == Messages.ADMIN_HEADER:
+    elif text == Messages.ADMIN_HEADER or text == Messages.CANCEL_ACTION:
         await admin_panel(update, context)
     else:
         await update.message.reply_text(Messages.ERROR_GENERIC)
