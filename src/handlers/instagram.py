@@ -5,6 +5,7 @@ Handles listing, viewing, and reporting Instagram targets.
 from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from sqlalchemy import select
+from datetime import datetime
 
 from config import Messages, settings
 from src.utils import Keyboards, Formatters
@@ -96,7 +97,7 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 stmt = stmt.where(InstagramTarget.id.not_in(subq))
             # If no enc_id, they haven't reported anything, so ALL are new. No filter needed.
             
-            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \\(گزارش نشده توسط شما\\)*"
+            header_text = f"{Messages.TARGETS_HEADER}\n\n{Messages.REPORTING_STEP_BY_STEP}\n{Messages.TARGETS_PROBLEM_HELP}"
             
         elif filter_type == CallbackData.FILTER_REPORTED:
             if enc_id:
@@ -113,12 +114,12 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "✅ *گزارش‌های من*\n"
                 "لیست صفحاتی که شما قبلاً گزارش داده‌اید\\.\n"
                 "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\.\n\n"
-                "_📝 دکمه «گزارش»: اگر فکر می‌کنید صفحه بسته شده است یا مشکل دیگری هست حتما به ما گزارش دهید\\!_"
+                f"{Messages.TARGETS_PROBLEM_HELP}"
             )
             show_report_btn = False
             
         else:
-            header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*"
+            header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*\n{Messages.TARGETS_PROBLEM_HELP}"
 
         # Order and Limit
         stmt = stmt.order_by(InstagramTarget.priority.asc(), InstagramTarget.anonymous_report_count.desc())
@@ -409,16 +410,25 @@ async def start_concern_report(update: Update, context: ContextTypes.DEFAULT_TYP
     """Start concern report flow - Show Menu."""
     query = update.callback_query
     target_id = int(query.data.split(":")[-1])
-    
-    # Save target_id specific to this flow if needed, 
-    # but for simple menu we can carry it in callback_data.
-    # Actually wait, we need to answer query first.
     await query.answer()
     
+    # Determine if user is an admin
+    from src.database.models import Admin
+    from src.utils.security import encrypt_id
+    
+    user_id = query.from_user.id
+    enc_id = encrypt_id(user_id)
+    
+    async with get_db() as session:
+        result = await session.execute(
+            select(Admin).where(Admin.encrypted_telegram_id == enc_id)
+        )
+        is_admin = result.scalar_one_or_none() is not None
+
     await query.edit_message_text(
         "🤔 *گزارش مشکل*\n\nلطفاً نوع مشکل را انتخاب کنید:",
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.concern_menu(target_id)
+        reply_markup=Keyboards.concern_menu(target_id, is_admin=is_admin)
     )
     return CHOOSING_CONCERN
 
@@ -426,6 +436,7 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
     """User selected 'Page Closed'."""
     query = update.callback_query
     target_id = int(query.data.split(":")[-1])
+    await query.answer()
     
     async with get_db() as session:
         # Get target info
@@ -438,12 +449,45 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
             return ConversationHandler.END
 
         # Check for Duplicate Concern
+        # 1. Check if reporting user is an admin
         user_id = query.from_user.id
-        from src.database.models import UserConcernLog, User
-        from src.utils.security import encrypt_id
+        from src.database.models import UserConcernLog, User, Admin, Victory
+        from src.utils.security import encrypt_id, decrypt_id
         
         enc_id = encrypt_id(user_id)
         
+        result_admin = await session.execute(
+            select(Admin).where(Admin.encrypted_telegram_id == enc_id)
+        )
+        admin_obj = result_admin.scalar_one_or_none()
+        
+        if admin_obj:
+            # ADMIN: Directly confirm victory
+            target.status = TargetStatus.REMOVED
+            target.removed_at = datetime.utcnow()
+            
+            victory = Victory(
+                target_id=target.id,
+                victory_date=datetime.utcnow(),
+                final_report_count=target.anonymous_report_count
+            )
+            session.add(victory)
+            await session.commit()
+            
+            await query.answer("🏆 پیروزی مستقیماً ثبت شد!", show_alert=True)
+            
+            # Broadcast Victory
+            try:
+                from src.services.notification_service import NotificationService
+                await NotificationService(context.bot).broadcast_victory(victory, target)
+            except Exception as e:
+                logger.error(f"Failed to broadcast direct victory: {e}")
+            
+            # Show updated list
+            await show_targets_list(update, context)
+            return ConversationHandler.END
+
+        # NORMAL USER: Proceed with admin notification/approval flow
         res_user = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
         user_obj = res_user.scalar_one_or_none()
         
@@ -459,12 +503,10 @@ async def concern_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
             return ConversationHandler.END
 
         # Notify Admins
-        from src.database.models import Admin
         admins = (await session.execute(select(Admin))).scalars().all()
         
         for admin in admins:
             try:
-                from src.utils.security import decrypt_id
                 await context.bot.send_message(
                     chat_id=decrypt_id(admin.encrypted_telegram_id),
                     text=f"🚨 *گزارش بسته شدن صفحه*\n\nSandisi: @{target.ig_handle}\nID: `{target.id}`\n\nآیا این صفحه بسته شده است؟",

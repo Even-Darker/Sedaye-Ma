@@ -577,13 +577,17 @@ class Keyboards:
         ])
 
     @staticmethod
-    def concern_menu(target_id: int) -> InlineKeyboardMarkup:
+    def concern_menu(target_id: int, is_admin: bool = False) -> InlineKeyboardMarkup:
         """Menu for choosing concern type."""
-        return InlineKeyboardMarkup([
+        buttons = [
             [InlineKeyboardButton("🏆 صفحه بسته شده", callback_data=CallbackData.TARGET_CONCERN_CLOSED.format(id=target_id))],
-            [InlineKeyboardButton("💬 موارد دیگر", callback_data=CallbackData.TARGET_CONCERN_OTHER.format(id=target_id))],
-            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.TARGETS_LIST)], 
-        ])
+        ]
+        
+        if not is_admin:
+            buttons.append([InlineKeyboardButton("💬 موارد دیگر", callback_data=CallbackData.TARGET_CONCERN_OTHER.format(id=target_id))])
+            
+        buttons.append([InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.TARGETS_LIST)])
+        return InlineKeyboardMarkup(buttons)
 
     @staticmethod
     def email_campaigns_list(campaigns: list, page: int = 0, total_pages: int = 1, completed_ids: set = None, filter_mode: str = "new") -> InlineKeyboardMarkup:

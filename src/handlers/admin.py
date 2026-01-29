@@ -413,6 +413,15 @@ async def mark_as_victory(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session.add(victory)
         await session.commit()
         
+        # Broadcast Victory
+        try:
+            from src.services.notification_service import NotificationService
+            notifier = NotificationService(context.bot)
+            await notifier.broadcast_victory(victory, target)
+            await notifier.notify_victory_reporters(target)
+        except Exception as e:
+            logger.error(f"Failed to broadcast manual removal victory: {e}")
+        
         await query.answer(f"🏆 پیروزی ثبت شد! @{target.ig_handle}", show_alert=True)
         
         # Return to admin panel
@@ -1133,6 +1142,16 @@ async def confirm_closed_handler(update: Update, context: ContextTypes.DEFAULT_T
                 )
                 session.add(victory)
                 await session.commit()
+
+                # Broadcast Victory
+                try:
+                    from src.services.notification_service import NotificationService
+                    notifier = NotificationService(context.bot)
+                    await notifier.broadcast_victory(victory, target)
+                    await notifier.notify_victory_reporters(target)
+                except Exception as e:
+                    logger.error(f"Failed to broadcast closed report list victory: {e}")
+
                 await query.answer("🏆 صفحه بسته شد! لیست بروزرسانی شد.")
 
     # Show next report (or empty state)
@@ -1368,6 +1387,15 @@ async def confirm_removal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session.add(victory)
         await session.commit()
         
+        # Broadcast Victory
+        try:
+            from src.services.notification_service import NotificationService
+            notifier = NotificationService(context.bot)
+            await notifier.broadcast_victory(victory, target)
+            await notifier.notify_victory_reporters(target)
+        except Exception as e:
+            logger.error(f"Failed to broadcast manual victory: {e}")
+        
         # Announce victory to admin
         # Announce victory to admin
         await query.edit_message_text(
@@ -1420,6 +1448,15 @@ async def admin_process_closed_report(update: Update, context: ContextTypes.DEFA
         session.add(victory)
         await session.commit()
         
+        # Broadcast Victory
+        try:
+            from src.services.notification_service import NotificationService
+            notifier = NotificationService(context.bot)
+            await notifier.broadcast_victory(victory, target)
+            await notifier.notify_victory_reporters(target)
+        except Exception as e:
+            logger.error(f"Failed to broadcast closed report recovery victory: {e}")
+            
         await query.answer("🏆 پیروزی ثبت شد!", show_alert=True)
         await query.edit_message_text(
             f"{query.message.text}\n\n🏆 *تایید شد: پیروزی ثبت شد!*",
