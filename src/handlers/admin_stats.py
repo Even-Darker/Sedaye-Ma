@@ -13,7 +13,7 @@ from src.database import (
     Petition, EmailCampaign, TargetStatus, PetitionStatus
 )
 from src.utils.decorators import admin_required
-from src.utils.formatters import Formatters
+from src.utils import Keyboards, Formatters
 
 logger = logging.getLogger(__name__)
 
