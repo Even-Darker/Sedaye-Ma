@@ -41,12 +41,17 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = await session.execute(
             select(User).where(User.encrypted_chat_id == enc_id)
         )
-        if not result.scalar_one_or_none():
+        user = result.scalar_one_or_none()
+        if not user:
             user = User(
-                encrypted_chat_id=enc_id
+                encrypted_chat_id=enc_id,
+                is_blocked_by_user=False
             )
             session.add(user)
-            await session.commit()
+        else:
+            user.is_blocked_by_user = False
+            session.add(user)
+        await session.commit()
     
     await update.message.reply_text(
         Messages.WELCOME,

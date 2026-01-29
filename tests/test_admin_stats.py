@@ -16,7 +16,7 @@ os.environ["ENVIRONMENT"] = "test"
 os.environ["ENCRYPTION_KEY"] = "Vj75PKfqG2TvdP3mFmxH3qp7lowbaNweLzK3HYAucB8="
 
 from src.database import init_db, AsyncSessionLocal
-from src.database.models import Base, User, InstagramTarget, Victory, SolidarityMessage, Petition, Admin, AdminRole
+from src.database.models import Base, User, InstagramTarget, Victory, SolidarityMessage, Petition, Admin, AdminRole, PetitionStatus
 from src.handlers.admin_stats import admin_stats
 from src.utils.security import encrypt_id
 
@@ -57,6 +57,7 @@ class TestAdminStats(unittest.IsolatedAsyncioTestCase):
             session.add(User(encrypted_chat_id=encrypt_id(2), last_seen=now - timedelta(days=5)))    # WAU
             session.add(User(encrypted_chat_id=encrypt_id(3), last_seen=now - timedelta(days=20)))   # MAU
             session.add(User(encrypted_chat_id=encrypt_id(4), last_seen=now - timedelta(days=40)))   # Old
+            session.add(User(encrypted_chat_id=encrypt_id(5), is_blocked_by_user=True))             # Blocked
             
             # Add Targets & Victories
             t1 = InstagramTarget(ig_handle="target1", anonymous_report_count=100)
@@ -71,7 +72,7 @@ class TestAdminStats(unittest.IsolatedAsyncioTestCase):
             session.add(SolidarityMessage(message="Stay strong", hearts=50, is_approved=True))
             
             # Add Petitions
-            session.add(Petition(title="P1", description="D", url="U", status="active"))
+            session.add(Petition(title="P1", description="D", url="U", status=PetitionStatus.ACTIVE))
             
             await session.commit()
             
@@ -88,15 +89,17 @@ class TestAdminStats(unittest.IsolatedAsyncioTestCase):
         self.assertIn("تعداد کل", msg)
         self.assertIn("۲۴ ساعت", msg)
         self.assertIn("۷ روز", msg)
+        self.assertIn("مسدود", msg)
         
         # Check for numbers in Arabic digits (as produced by {:,})
-        self.assertIn("4", msg)
+        # Check for numbers
+        self.assertIn("5", msg) # 4 users + 1 blocked = 5 total
         self.assertIn("300", msg)
-        self.assertIn("50", msg)
+        self.assertIn("1", msg)   # 1 blocked user
         
         self.assertIn("پیروزی", msg)
         self.assertIn("ضربات گزارش", msg)
-        self.assertIn("نرخ موفقیت", msg)
+        self.assertIn("درصد موفقیت", msg)
 
 if __name__ == "__main__":
     unittest.main()

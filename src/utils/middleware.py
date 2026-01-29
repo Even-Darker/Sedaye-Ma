@@ -66,7 +66,10 @@ class ActivityTracker:
                 stmt = (
                     update(User)
                     .where(User.encrypted_chat_id == enc_id)
-                    .values(last_seen=datetime.now(UTC).replace(tzinfo=None)) # removing tzinfo for sqlite compatibility if needed, though models use datetime.utcnow which is naive
+                    .values(
+                        last_seen=datetime.now(UTC).replace(tzinfo=None),
+                        is_blocked_by_user=False
+                    )
                 )
                 result = await session.execute(stmt)
                 await session.commit()

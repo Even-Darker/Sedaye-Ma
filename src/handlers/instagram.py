@@ -25,14 +25,14 @@ async def show_report_sandisi_menu(update: Update, context: ContextTypes.DEFAULT
         await query.answer()
         
         await query.edit_message_text(
-            Messages.REPORT_SANDISI_DESCRIPTION,
+            Messages.REPORT_SANDISI_DESCRIPTION + Messages.IG_REPORT_HELP_FOOTER,
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.report_sandisi_menu()
         )
     else:
         # From text menu
         await update.message.reply_text(
-            Messages.REPORT_SANDISI_DESCRIPTION,
+            Messages.REPORT_SANDISI_DESCRIPTION + Messages.IG_REPORT_HELP_FOOTER,
             parse_mode="MarkdownV2",
             reply_markup=Keyboards.report_sandisi_menu()
         )
@@ -97,7 +97,7 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 stmt = stmt.where(InstagramTarget.id.not_in(subq))
             # If no enc_id, they haven't reported anything, so ALL are new. No filter needed.
             
-            header_text = f"{Messages.TARGETS_HEADER}\n\n{Messages.REPORTING_STEP_BY_STEP}\n{Messages.TARGETS_PROBLEM_HELP}"
+            header_text = f"{Messages.TARGETS_HEADER}\n\n{Messages.REPORTING_STEP_BY_STEP}\n{Messages.TARGETS_PROBLEM_HELP.format(Messages.IG_REPORT_HELP_FOOTER)}"
             
         elif filter_type == CallbackData.FILTER_REPORTED:
             if enc_id:
@@ -114,12 +114,12 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "✅ *گزارش‌های من*\n"
                 "لیست صفحاتی که شما قبلاً گزارش داده‌اید\\.\n"
                 "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\.\n\n"
-                f"{Messages.TARGETS_PROBLEM_HELP}"
+                f"{Messages.TARGETS_PROBLEM_HELP.format(Messages.IG_REPORT_HELP_FOOTER)}"
             )
             show_report_btn = False
             
         else:
-            header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*\n{Messages.TARGETS_PROBLEM_HELP}"
+            header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*\n{Messages.TARGETS_PROBLEM_HELP.format(Messages.IG_REPORT_HELP_FOOTER)}"
 
         # Order and Limit
         stmt = stmt.order_by(InstagramTarget.priority.asc(), InstagramTarget.anonymous_report_count.desc())
