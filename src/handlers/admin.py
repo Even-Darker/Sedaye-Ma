@@ -708,13 +708,12 @@ async def _promote_user_to_admin(update: Update, context: ContextTypes.DEFAULT_T
         )
         session.add(new_admin)
         await session.commit()
-        
     await update.message.reply_text(
         f"✅ *ادمین جدید اضافه شد*\n\n"
         f"کاربر: {Formatters.escape_markdown(str(display_name))}\n"
         f"شناسه: `{new_admin_id}`",
         parse_mode="MarkdownV2",
-        reply_markup=Keyboards.admin_menu(is_super_admin=True) # Assuming adder is super
+        reply_markup=Keyboards.main_menu_persistent(is_admin=True) # Restore bottom keyboard
     )
     return ConversationHandler.END
 
@@ -802,6 +801,14 @@ async def handle_menu_fallback(update: Update, context: ContextTypes.DEFAULT_TYP
     elif text == Messages.MENU_SETTINGS:
         await settings.show_settings(update, context)
     elif text == Messages.ADMIN_HEADER or text == Messages.CANCEL_ACTION:
+        # Restore the main menu reply keyboard since it was replaced by the "Select User" button
+        is_sa = await is_super_admin(update.effective_user.id)
+        await update.message.reply_text(
+            Messages.ADMIN_HEADER,
+            parse_mode="MarkdownV2",
+            reply_markup=Keyboards.main_menu_persistent(is_admin=True)
+        )
+        # Also refresh the inline panel
         await admin_panel(update, context)
     else:
         await update.message.reply_text(Messages.ERROR_GENERIC)
