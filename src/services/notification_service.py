@@ -6,9 +6,10 @@ from typing import List
 from telegram import Bot
 from sqlalchemy import select
 
-from src.database import get_db, NotificationPreference, Announcement, Victory, InstagramTarget
+from src.database import get_db, User, Announcement, Victory, InstagramTarget
 from src.database.models import AnnouncementCategory
 from src.utils.formatters import Formatters
+from src.utils.security import decrypt_id
 from config import Messages
 import logging
 
@@ -27,13 +28,13 @@ class NotificationService:
             # Get appropriate subscribers based on category
             if announcement.category == AnnouncementCategory.URGENT:
                 result = await session.execute(
-                    select(NotificationPreference)
-                    .where(NotificationPreference.announcements_urgent == True)
+                    select(User)
+                    .where(User.announcements_urgent == True)
                 )
             else:
                 result = await session.execute(
-                    select(NotificationPreference)
-                    .where(NotificationPreference.announcements_news == True)
+                    select(User)
+                    .where(User.announcements_news == True)
                 )
             
             subscribers = result.scalars().all()
@@ -41,10 +42,13 @@ class NotificationService:
             message = Formatters.format_announcement(announcement)
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+                    
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2"
                     )
@@ -59,8 +63,8 @@ class NotificationService:
         """Broadcast a victory to all opted-in users."""
         async with get_db() as session:
             result = await session.execute(
-                select(NotificationPreference)
-                .where(NotificationPreference.victories == True)
+                select(User)
+                .where(User.victories == True)
             )
             subscribers = result.scalars().all()
             
@@ -76,10 +80,13 @@ class NotificationService:
 """
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2"
                     )
@@ -93,24 +100,27 @@ class NotificationService:
         """Broadcast a new petition to opted-in users."""
         async with get_db() as session:
             result = await session.execute(
-                select(NotificationPreference)
-                .where(NotificationPreference.petitions == True)
+                select(User)
+                .where(User.petitions == True)
             )
             subscribers = result.scalars().all()
             
             message = Formatters.format_new_petition_announcement(petition)
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+                    
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2"
                     )
                     sent_count += 1
                 except Exception as e:
-                    logger.error(f"Failed to send petition notification to {pref.chat_id}: {e}")
+                    logger.error(f"Failed to send petition notification: {e}")
                     pass
             
             return sent_count
@@ -122,8 +132,8 @@ class NotificationService:
         
         async with get_db() as session:
             result = await session.execute(
-                select(NotificationPreference)
-                .where(NotificationPreference.email_campaigns == True)
+                select(User)
+                .where(User.email_campaigns == True)
             )
             subscribers = result.scalars().all()
             
@@ -144,18 +154,21 @@ class NotificationService:
             ])
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2",
                         reply_markup=keyboard
                     )
-                    logger.info(f"Successfully sent email notification to {pref.chat_id}")
+                    logger.info(f"Successfully sent email notification to {chat_id}")
                     sent_count += 1
                 except Exception as e:
-                    logger.error(f"Failed to send email notification to {pref.chat_id}: {e}")
+                    logger.error(f"Failed to send email notification: {e}")
             
             return sent_count
 
@@ -166,8 +179,9 @@ class NotificationService:
         from src.utils.keyboards import CallbackData
         
         async with get_db() as session:
-            result = await session.execute(select(Admin.telegram_id))
-            admin_ids = result.scalars().all()
+            result = await session.execute(select(Admin.encrypted_telegram_id))
+            encrypted_ids = result.scalars().all()
+            admin_ids = [decrypt_id(eid) for eid in encrypted_ids if decrypt_id(eid)]
             
             preview = ", ".join([f"@{h}" for h in handles[:3]])
             if len(handles) > 3:
@@ -214,8 +228,9 @@ class NotificationService:
         logger.info(f"Preparing removal notification for handle: {handle}, target_id: {target_id}")
         
         async with get_db() as session:
-            result = await session.execute(select(Admin.telegram_id))
-            admin_ids = result.scalars().all()
+            result = await session.execute(select(Admin.encrypted_telegram_id))
+            encrypted_ids = result.scalars().all()
+            admin_ids = [decrypt_id(eid) for eid in encrypted_ids if decrypt_id(eid)]
             
             logger.info(f"Found {len(admin_ids)} admins in database: {admin_ids}")
             
@@ -262,8 +277,8 @@ class NotificationService:
             # Broadcast to users who enabled 'targets' notifications
             try:
                 result = await session.execute(
-                    select(NotificationPreference)
-                    .where(NotificationPreference.targets == True)
+                    select(User)
+                    .where(User.targets == True)
                 )
                 subscribers = result.scalars().all()
                 logger.info(f"Broadcast: Found {len(subscribers)} subscribers with targets=True")
@@ -278,17 +293,20 @@ class NotificationService:
             ])
             
             sent_count = 0
-            for pref in subscribers:
+            for user in subscribers:
                 try:
+                    chat_id = decrypt_id(user.encrypted_chat_id)
+                    if not chat_id: continue
+                    
                     await self.bot.send_message(
-                        chat_id=pref.chat_id,
+                        chat_id=chat_id,
                         text=message,
                         parse_mode="MarkdownV2",
                         reply_markup=keyboard
                     )
                     sent_count += 1
                 except Exception as e:
-                    logger.error(f"Failed to send target alert to {pref.chat_id}: {e}")
+                    logger.error(f"Failed to send target alert: {e}")
             
             logger.info(f"Broadcast: Sent to {sent_count} users")
             return sent_count

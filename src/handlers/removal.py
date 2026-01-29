@@ -88,22 +88,27 @@ async def receive_removal_handle(update: Update, context: ContextTypes.DEFAULT_T
     
     # RATE LIMIT CHECK (24 Hours)
     # ---------------------------------------------------------
+    # RATE LIMIT CHECK (24 Hours)
+    # ---------------------------------------------------------
     user_id = update.effective_user.id
-    from hashlib import sha256
-    from config import settings
-    from src.database.models import UserVictoryLog
+    from src.database.models import UserVictoryLog, User
+    from src.database.models import UserVictoryLog, User
+    from src.utils.security import encrypt_id
     from datetime import datetime, timedelta
     
-    salt = settings.encryption_key or "default_salt" 
-    user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+    enc_id = encrypt_id(user_id)
     
     async with get_db() as session:
+        # Get Encrypted ID
+        res_user = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+        user_obj = res_user.scalar_one_or_none()
+        
         # Check last submission
         log_result = await session.execute(
             select(UserVictoryLog)
             .where(
                 UserVictoryLog.target_id == target.id,
-                UserVictoryLog.user_hash == user_hash
+                UserVictoryLog.encrypted_user_id == enc_id
             )
             .order_by(UserVictoryLog.created_at.desc())
             .limit(1)
@@ -131,7 +136,7 @@ async def receive_removal_handle(update: Update, context: ContextTypes.DEFAULT_T
         )
         # Log this submission
         async with get_db() as session:
-            new_log = UserVictoryLog(target_id=target.id, user_hash=user_hash)
+            new_log = UserVictoryLog(target_id=target.id, encrypted_user_id=enc_id)
             session.add(new_log)
             await session.commit()
             
@@ -164,15 +169,16 @@ async def confirm_manual_removal(update: Update, context: ContextTypes.DEFAULT_T
         user_id = update.effective_user.id
         
         # Log this submission (Manual confirmation)
-        from hashlib import sha256
-        from config import settings
-        from src.database.models import UserVictoryLog
+        from src.database.models import UserVictoryLog, User
+        from src.utils.security import encrypt_id
         
-        salt = settings.encryption_key or "default_salt" 
-        user_hash = sha256(f"{user_id}{salt}".encode()).hexdigest()
+        enc_id = encrypt_id(user_id)
         
         async with get_db() as session:
-            new_log = UserVictoryLog(target_id=target_id, user_hash=user_hash)
+            res_user = await session.execute(select(User).where(User.encrypted_chat_id == enc_id))
+            user_obj = res_user.scalar_one_or_none()
+            
+            new_log = UserVictoryLog(target_id=target_id, encrypted_user_id=enc_id)
             session.add(new_log)
             await session.commit()
         

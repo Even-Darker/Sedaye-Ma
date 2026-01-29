@@ -10,7 +10,7 @@ from .models import (
     FreeConfig,
     SolidarityMessage,
     ReportTemplate,
-    NotificationPreference,
+    User,
     UserReportLog,
     UserConcernLog,
 )
@@ -28,7 +28,7 @@ __all__ = [
     'FreeConfig',
     'SolidarityMessage',
     'ReportTemplate',
-    'NotificationPreference',
+    'User',
     'UserReportLog',
     'UserConcernLog',
 ]

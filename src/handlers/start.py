@@ -16,8 +16,10 @@ async def is_user_admin(user_id: int) -> bool:
     if user_id in settings.super_admin_ids:
         return True
     async with get_db() as session:
+        from src.utils.security import encrypt_id
+        enc_id = encrypt_id(user_id)
         result = await session.execute(
-            select(Admin).where(Admin.telegram_id == user_id)
+            select(Admin).where(Admin.encrypted_telegram_id == enc_id)
         )
         return result.scalar_one_or_none() is not None
 
@@ -28,14 +30,22 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_admin = await is_user_admin(user_id)
     
     # Ensure user is registered for notifications
-    from src.database import NotificationPreference
+    # Ensure user is registered
+    from src.database import User
+    from src.database import User
+    from src.utils.security import encrypt_id
+    
+    enc_id = encrypt_id(user_id)
+    
     async with get_db() as session:
         result = await session.execute(
-            select(NotificationPreference).where(NotificationPreference.chat_id == user_id)
+            select(User).where(User.encrypted_chat_id == enc_id)
         )
         if not result.scalar_one_or_none():
-            prefs = NotificationPreference(chat_id=user_id)
-            session.add(prefs)
+            user = User(
+                encrypted_chat_id=enc_id
+            )
+            session.add(user)
             await session.commit()
     
     await update.message.reply_text(

@@ -48,6 +48,12 @@ class PetitionStatus(enum.Enum):
     EXPIRED = "expired"
 
 
+class UserStatus(enum.Enum):
+    """User status."""
+    ACTIVE = "active"
+    RESTRICTED = "restricted"
+    BANNED = "banned"
+
 # ═══════════════════════════════════════════════════════════════
 # ADMIN MODEL (Only user data we store - with explicit consent)
 # ═══════════════════════════════════════════════════════════════
@@ -55,12 +61,14 @@ class PetitionStatus(enum.Enum):
 class Admin(Base):
     """
     Admin users who have explicitly consented to being tracked.
-    This is the ONLY model that stores user identifiers.
+    IDs are encrypted at rest.
     """
     __tablename__ = "admins"
     
     id = Column(Integer, primary_key=True)
-    telegram_id = Column(BigInteger, unique=True, nullable=False)  # Encrypted in production
+    id = Column(Integer, primary_key=True)
+    encrypted_telegram_id = Column(String(255), unique=True, nullable=False, index=True) # Deterministic Encrypted ID
+    
     role = Column(SQLEnum(AdminRole), default=AdminRole.MODERATOR)
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -283,20 +291,31 @@ class ReportTemplate(Base):
 
 
 # ═══════════════════════════════════════════════════════════════
-# NOTIFICATION PREFERENCE MODEL
+# USER MODEL (Centralized & Encrypted)
 # ═══════════════════════════════════════════════════════════════
 
-class NotificationPreference(Base):
+class User(Base):
     """
-    Opt-in notification preferences.
-    We store ONLY the chat_id needed to send messages, nothing else.
+    Central user entity.
+    - Stores Chat ID ENCRYPTED (reversible for notifications).
+    - Tracks basic activity stats.
+    - Stores notification preferences.
     """
-    __tablename__ = "notification_preferences"
+    __tablename__ = "users"
     
     id = Column(Integer, primary_key=True)
-    chat_id = Column(BigInteger, unique=True, nullable=False)  # Encrypted in production
+    encrypted_chat_id = Column(String(255), unique=True, nullable=False, index=True) # Deterministic Encrypted ID
     
-    # Notification toggles
+    # Activity
+    first_seen = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, default=datetime.utcnow)
+    
+    # Status
+    # is_blocked_by_user: They blocked the bot (detected via 403 Forbidden).
+    is_blocked_by_user = Column(Boolean, default=False)
+    status = Column(SQLEnum(UserStatus), default=UserStatus.ACTIVE)
+    
+    # Notification Preferences
     announcements_urgent = Column(Boolean, default=True)
     announcements_news = Column(Boolean, default=True)
     victories = Column(Boolean, default=True)
@@ -307,109 +326,95 @@ class NotificationPreference(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    def __repr__(self):
+        return f"<User(id={self.id}, status={self.status.value})>"
+
+
 # ═══════════════════════════════════════════════════════════════
-# USER REPORT LOG (HASHED FOR PRIVACY)
+# USER REPORT LOG
 # ═══════════════════════════════════════════════════════════════
 
 class UserReportLog(Base):
     """
-    Tracks which users have reported which targets to prevent duplicates.
-    STORES HASHED IDS ONLY. REVERSIBLE ONLY WITH SERVER-SIDE SALT.
+    Tracks which users have reported which targets.
+    Uses Encrypted ID for privacy compliance.
     """
     __tablename__ = "user_report_logs"
     
     id = Column(Integer, primary_key=True)
     target_id = Column(Integer, ForeignKey("instagram_targets.id"), nullable=False)
     
-    # SHA256(user_id + salt)
-    user_hash = Column(String(64), nullable=False)
+    encrypted_user_id = Column(String(255), nullable=False)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Ensure one report per user per target
     __table_args__ = (
-        UniqueConstraint('target_id', 'user_hash', name='uq_target_user_hash'),
+        UniqueConstraint('target_id', 'encrypted_user_id', name='uq_target_user_enc'),
     )
-    
     
     def __repr__(self):
         return f"<ReportLog(target={self.target_id})>"
 
 
 # ═══════════════════════════════════════════════════════════════
-# USER CONCERN LOG (HASHED FOR PRIVACY)
+# USER CONCERN LOG
 # ═══════════════════════════════════════════════════════════════
 
 class UserConcernLog(Base):
     """
-    Tracks which users have reported concerns (Page Closed / Other) for which targets.
-    To prevent spamming admins with the same 'page closed' claim.
-    STORES HASHED IDS ONLY.
+    Tracks concern reports.
     """
     __tablename__ = "user_concern_logs"
     
     id = Column(Integer, primary_key=True)
     target_id = Column(Integer, ForeignKey("instagram_targets.id"), nullable=False)
     
-    # SHA256(user_id + salt)
-    user_hash = Column(String(64), nullable=False)
-    concern_type = Column(String(50), nullable=False) # "closed", "other"
-    message_content = Column(Text, nullable=True) # User's custom message (for "other")
+    encrypted_user_id = Column(String(255), nullable=False)
+    concern_type = Column(String(50), nullable=False)
+    message_content = Column(Text, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Ensure one concern per user per target per type
     __table_args__ = (
-        UniqueConstraint('target_id', 'user_hash', 'concern_type', name='uq_concern_target_user_type'),
+        UniqueConstraint('target_id', 'encrypted_user_id', 'concern_type', name='uq_concern_user_enc'),
     )
-    
-    def __repr__(self):
-        return f"<ConcernLog(target={self.target_id}, type={self.concern_type})>"
 
 
 # ═══════════════════════════════════════════════════════════════
-# USER VICTORY LOG (HASHED - RATE LIMITED)
+# USER VICTORY LOG
 # ═══════════════════════════════════════════════════════════════
 
 class UserVictoryLog(Base):
     """
-    Tracks victory submissions to prevent spam.
-    Users can only submit a victory for a target once every 24 hours.
-    STORES HASHED IDS ONLY.
+    Tracks victory submissions.
     """
     __tablename__ = "user_victory_logs"
     
     id = Column(Integer, primary_key=True)
     target_id = Column(Integer, ForeignKey("instagram_targets.id"), nullable=False)
     
-    # SHA256(user_id + salt)
-    user_hash = Column(String(64), nullable=False)
+    encrypted_user_id = Column(String(255), nullable=False)
     
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f"<VictoryLog(target={self.target_id}, date={self.created_at})>"
 
 
 # ═══════════════════════════════════════════════════════════════
-# USER CONFIG REPORT (HASHED - RATE LIMITED)
+# USER CONFIG REPORT
 # ═══════════════════════════════════════════════════════════════
 
 class UserConfigReport(Base):
     """
-    Tracks which users have reported which free configs.
-    Prevents duplicate reporting (spam).
-    STORES HASHED IDS ONLY.
+    Tracks config reports.
     """
     __tablename__ = "user_config_reports"
 
     id = Column(Integer, primary_key=True)
     config_id = Column(Integer, ForeignKey("free_configs.id"), nullable=False)
-    user_hash = Column(String(64), nullable=False)
+    encrypted_user_id = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (
-        UniqueConstraint('config_id', 'user_hash', name='uq_config_user_hash'),
+        UniqueConstraint('config_id', 'encrypted_user_id', name='uq_config_user_enc'),
     )
 
 
@@ -423,22 +428,18 @@ class EmailCampaign(Base):
     
     id = Column(Integer, primary_key=True)
     title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=False) # Why send this?
+    description = Column(Text, nullable=False)
     
-    # Email details
     receiver_email = Column(String(255), nullable=False)
     subject = Column(String(255), nullable=False)
     body = Column(Text, nullable=False)
     
-    # Tracking
     action_count = Column(Integer, default=0)
-
     is_active = Column(Boolean, default=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_admin_id = Column(Integer, ForeignKey("admins.id"), nullable=True)
     
-    # Relationships
     created_by = relationship("Admin", back_populates="email_campaigns")
     
     def __repr__(self):
@@ -454,34 +455,29 @@ class EmailCampaign(Base):
 
     @property
     def redirect_link(self) -> str:
-        """Generate HTTPS redirect link."""
         from urllib.parse import quote
         safe_to = quote(self.receiver_email)
         safe_subject = quote(self.subject)
         safe_body = quote(self.body)
-        # Using the new deployed service
         return f"https://even-darker.github.io/Email-Redirector/?to={safe_to}&subject={safe_subject}&body={safe_body}"
 
 
 # ═══════════════════════════════════════════════════════════════
-# USER EMAIL ACTION (HASHED - RATE LIMITED)
+# USER EMAIL ACTION
 # ═══════════════════════════════════════════════════════════════
 
 class UserEmailAction(Base):
     """
     Tracks which users have sent emails to prevent spam counting.
-    STORES HASHED IDS ONLY.
     """
     __tablename__ = "user_email_actions"
     
     id = Column(Integer, primary_key=True)
     campaign_id = Column(Integer, ForeignKey("email_campaigns.id"), nullable=False)
-    user_hash = Column(String(64), nullable=False)
+    encrypted_user_id = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     __table_args__ = (
-        UniqueConstraint('campaign_id', 'user_hash', name='uq_campaign_user_hash'),
+        UniqueConstraint('campaign_id', 'encrypted_user_id', name='uq_campaign_user_enc'),
     )
-    
-    def __repr__(self):
-        return f"<UserEmailAction(campaign={self.campaign_id})>"
+
