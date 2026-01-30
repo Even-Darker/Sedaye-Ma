@@ -55,12 +55,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           SUPER_ADMIN_IDS: ${{ secrets.SUPER_ADMIN_IDS }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           GITHUB_ACTOR: ${{ github.actor }}
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
-          envs: GITHUB_TOKEN,TELEGRAM_BOT_TOKEN,SUPER_ADMIN_IDS,REGISTRY,IMAGE_NAME,CONTAINER_NAME,GITHUB_ACTOR
+          envs: GITHUB_TOKEN,TELEGRAM_BOT_TOKEN,SUPER_ADMIN_IDS,ENCRYPTION_KEY,REGISTRY,IMAGE_NAME,CONTAINER_NAME,GITHUB_ACTOR
           command_timeout: 30m
           script: |
             # Login to GHCR on server
@@ -80,6 +81,7 @@ jobs:
               -v $HOME/sedaye-ma-data:/app/data \
               -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
               -e SUPER_ADMIN_IDS="$SUPER_ADMIN_IDS" \
+              -e ENCRYPTION_KEY="$ENCRYPTION_KEY" \
               -e ENVIRONMENT="production" \
               $REGISTRY/$IMAGE_NAME:latest
             
