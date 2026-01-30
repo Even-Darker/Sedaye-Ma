@@ -240,7 +240,7 @@ class Keyboards:
             [
                 InlineKeyboardButton(
                     Messages.OPEN_PROFILE_BUTTON, 
-                    url=f"https://instagram.com/{ig_handle}"
+                    url=f"instagram://user?username={ig_handle}"
                 ),
             ],
             [
@@ -268,7 +268,7 @@ class Keyboards:
             row = [
                 InlineKeyboardButton(
                     f"{priority_emoji} @{target.ig_handle}",
-                    url=f"https://instagram.com/{target.ig_handle}"
+                    url=f"instagram://user?username={target.ig_handle}"
                 ),
                 InlineKeyboardButton(
                     concern_text,
@@ -358,7 +358,7 @@ class Keyboards:
 
         buttons.append([
             InlineKeyboardButton(Messages.SHARE_BUTTON, callback_data=CallbackData.PETITION_SHARE_OPT.format(id=petition_id, offset=offset)),
-            InlineKeyboardButton(Messages.SIGN_PETITION, url=url),
+            InlineKeyboardButton(Messages.SIGN_PETITION, callback_data=CallbackData.PETITION_SIGN.format(id=petition_id)),
         ])
         
         # Navigation Row

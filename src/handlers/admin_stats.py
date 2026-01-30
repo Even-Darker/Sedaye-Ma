@@ -65,9 +65,9 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         active_petitions = (await session.execute(
             select(func.count(Petition.id)).where(Petition.status == PetitionStatus.ACTIVE)
         )).scalar() or 0
-        total_signatures = (await session.execute(select(func.sum(Petition.signatures_current)))).scalar() or 0
+        total_visits = (await session.execute(select(func.sum(Petition.visit_count)))).scalar() or 0
         top_petition = (await session.execute(
-            select(Petition).order_by(Petition.signatures_current.desc()).limit(1)
+            select(Petition).order_by(Petition.visit_count.desc()).limit(1)
         )).scalar()
 
         # --- 5. Email Campaigns ---
@@ -105,8 +105,8 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📣 *پتیشن‌ها*\n"
         f"• تعداد کل: `{esc(f'{total_petitions:,}')}`\n"
         f"• در جریان: `{esc(f'{active_petitions:,}')}`\n"
-        f"• مجموع امضاها: `{esc(f'{total_signatures:,}')}`\n"
-        + (f"• برترین: `{esc(top_petition.title)}` \\({esc(f'{top_petition.signatures_current:,}')}\\)\n" if top_petition else "")
+        f"• مجموع بازدیدها: `{esc(f'{total_visits:,}')}`\n"
+        + (f"• برترین: `{esc(top_petition.title)}` \\({esc(f'{top_petition.visit_count:,}')}\\)\n" if top_petition else "")
         + "\n"
         
         "📧 *ایمیل‌ها*\n"
