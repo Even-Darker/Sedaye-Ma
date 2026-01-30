@@ -450,10 +450,11 @@ class EmailCampaign(Base):
     def mailto_link(self) -> str:
         """Generate mailto link with cleaned recipients."""
         from urllib.parse import quote
-        # Clean up recipients (remove spaces after commas)
         recipients = ",".join([e.strip() for e in self.receiver_email.split(",")])
         safe_subject = quote(self.subject)
         safe_body = quote(self.body)
+        # Using a literal recipients list in mailto for better client support
+        # Note: we use quote for subject/body but keep recipients more 'raw' as parsers vary
         return f"mailto:{recipients}?subject={safe_subject}&body={safe_body}"
 
     @property
@@ -461,10 +462,14 @@ class EmailCampaign(Base):
         """Generate redirect link with cleaned recipients."""
         from urllib.parse import quote
         recipients = ",".join([e.strip() for e in self.receiver_email.split(",")])
-        safe_to = quote(recipients)
+        # Chrome on Android often fails to decode %2C (comma) correctly for intents.
+        # Keeping it safe but more literal with safe="@,"
+        safe_to = quote(recipients, safe="@,")
         safe_subject = quote(self.subject)
         safe_body = quote(self.body)
-        return f"https://even-darker.github.io/Email-Redirector/?to={safe_to}&subject={safe_subject}&body={safe_body}"
+        # We also pass a semicolon version for Android if the redirector supports it
+        android_to = quote(recipients.replace(",", ";"), safe="@;")
+        return f"https://even-darker.github.io/Email-Redirector/?to={safe_to}&to_android={android_to}&subject={safe_subject}&body={safe_body}"
 
 
 # ═══════════════════════════════════════════════════════════════
