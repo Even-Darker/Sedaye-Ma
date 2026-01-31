@@ -47,7 +47,7 @@ async def show_filter_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         (
             "� *کدام صفحات را نمایش دهیم؟*\n\n"
             "🧃 جدید: ساندیسی هایی که هنوز شما ریپورت نکردین\n"
-            "🕰️ قدیمی: ساندیسی هایی که قبلا ریپورت کردین"
+            "🕰️ تاریخچه ریپورت‌ها: ساندیسی هایی که قبلا ریپورت کردین"
         ),
         parse_mode="MarkdownV2",
         reply_markup=Keyboards.targets_filter_menu()
@@ -97,7 +97,13 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 stmt = stmt.where(InstagramTarget.id.not_in(subq))
             # If no enc_id, they haven't reported anything, so ALL are new. No filter needed.
             
-            header_text = f"{Messages.TARGETS_HEADER}\n\n{Messages.REPORTING_STEP_BY_STEP}\n{Messages.TARGETS_PROBLEM_HELP.format(Messages.IG_REPORT_HELP_FOOTER)}"
+            header_text = (
+                "🎯 *مرکز عملیات: اهداف جدید*\n"
+                "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
+                "این لیست صفحاتی است که هنوز توسط شما ریپورت نشده‌اند\\. با گزارش جمعی، این صفحات را از دسترس خارج می‌کنیم\\.\n\n"
+                "⚔️ *مراحل:* پیج را باز کنید، ریپورت کنید و سپس روی **✅ گزارش دادم** بزنید\\.\n\n"
+                "⚠️ *دکمه اشکال:* اگر در حین عملیات دیدید پیج قبلاً بسته شده، برای ثبت پیروزی روی این دکمه بزنید\\."
+            )
             
         elif filter_type == CallbackData.FILTER_REPORTED:
             if enc_id:
@@ -110,11 +116,10 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Enhanced description for reported validation
             header_text = (
-                f"{Messages.TARGETS_HEADER}\n\n"
-                "✅ *گزارش‌های من*\n"
-                "لیست صفحاتی که شما قبلاً گزارش داده‌اید\\.\n"
-                "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\.\n\n"
-                f"{Messages.TARGETS_PROBLEM_HELP.format(Messages.IG_REPORT_HELP_FOOTER)}"
+                "✅ *تاریخچه و تأیید پیروزی*\n"
+                "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
+                "در این بخش می‌توانید وضعیت اهدافی که قبلاً ریپورت کرده‌اید را پیگیری کنید\\. برای این موارد نیازی به ریپورت مجدد نیست\\.\n\n"
+                "🔔 *وظیفه شما:* اگر متوجه شدید هدفی بالاخره از دسترس خارج شده، روی **🔔 اعلام حذفی** بزنید تا پیروزی به نام شما ثبت شود\\."
             )
             show_report_btn = False
             
@@ -205,7 +210,13 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if enc_id:
                 subq = select(UserReportLog.target_id).where(UserReportLog.encrypted_user_id == enc_id)
                 stmt = stmt.where(InstagramTarget.id.not_in(subq))
-            header_text = f"{Messages.TARGETS_HEADER}\n\n🆕 *صفحات جدید \\(گزارش نشده توسط شما\\)*\n\n_📝 دکمه «گزارش»: اگر فکر می‌کنید صفحه بسته شده است یا مشکل دیگری هست حتما به ما گزارش دهید\\!_"
+            header_text = (
+                "🎯 *مرکز عملیات: اهداف جدید*\n"
+                "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
+                "این لیست صفحاتی است که هنوز توسط شما ریپورت نشده‌اند\\. با گزارش جمعی، این صفحات را از دسترس خارج می‌کنیم\\.\n\n"
+                "⚔️ *مراحل:* پیج را باز کنید، ریپورت کنید و سپس روی **✅ گزارش دادم** بزنید\\.\n\n"
+                "⚠️ *دکمه اشکال:* اگر در حین عملیات دیدید پیج قبلاً بسته شده، برای ثبت پیروزی روی این دکمه بزنید\\."
+            )
             
         elif filter_type == CallbackData.FILTER_REPORTED:
             if enc_id:
@@ -216,11 +227,10 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Enhanced description for reported validation
             header_text = (
-                f"{Messages.TARGETS_HEADER}\n\n"
-                "✅ *گزارش‌های من*\n"
-                "لیست صفحاتی که شما قبلاً گزارش داده‌اید\\.\n"
-                "نیازی به اقدام مجدد برای این موارد نیست، مگر اینکه مشکل جدیدی پیش آمده باشد\\.\n\n"
-                "_📝 دکمه «گزارش»: اگر فکر می‌کنید صفحه بسته شده است یا مشکل دیگری هست حتما به ما گزارش دهید\\!_"
+                "✅ *تاریخچه و تأیید پیروزی*\n"
+                "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
+                "در این بخش می‌توانید وضعیت اهدافی که قبلاً ریپورت کرده‌اید را پیگیری کنید\\. برای این موارد نیازی به ریپورت مجدد نیست\\.\n\n"
+                "🔔 *وظیفه شما:* اگر متوجه شدید هدفی بالاخره از دسترس خارج شده، روی **🔔 اعلام حذفی** بزنید تا پیروزی به نام شما ثبت شود\\."
             )
             show_report_btn = False
         else:
@@ -425,8 +435,15 @@ async def start_concern_report(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         is_admin = result.scalar_one_or_none() is not None
 
+    # Determine title based on filter context
+    filter_type = context.user_data.get('targets_filter', CallbackData.FILTER_ALL)
+    if filter_type == CallbackData.FILTER_REPORTED:
+        title = "🔔 *وضعیت پیروزی*\n\nآیا تائید می‌کنید که این صفحه حذف شده است؟"
+    else:
+        title = "🤔 *گزارش مشکل*\n\nلطفاً نوع مشکل را انتخاب کنید:"
+
     await query.edit_message_text(
-        "🤔 *گزارش مشکل*\n\nلطفاً نوع مشکل را انتخاب کنید:",
+        title,
         parse_mode="MarkdownV2",
         reply_markup=Keyboards.concern_menu(target_id, is_admin=is_admin)
     )
