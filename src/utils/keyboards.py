@@ -61,6 +61,9 @@ class CallbackData:
     VICTORIES_ALL = "victories:all"
     VICTORIES_CELEBRATE = "victories:celebrate"
     VICTORIES_PAGE = "victories:page:{page}"
+    VICTORIES_LEADERBOARD = "victories:leaderboard"
+    VICTORIES_NICKNAME_START = "victories:nickname:start"
+    VICTORIES_SHARE = "victories:share"
     
     # Announcements
     ANNOUNCEMENT_VIEW = "announce:view:{id}"
@@ -228,6 +231,15 @@ class Keyboards:
         ])
     
     @staticmethod
+    def leaderboard_actions() -> InlineKeyboardMarkup:
+        """Action buttons for the leaderboard."""
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("👤 تغییر لقب", callback_data=CallbackData.VICTORIES_NICKNAME_START)],
+            [InlineKeyboardButton("📤 اشتراک‌گذاری رتبه", callback_data=CallbackData.VICTORIES_SHARE)],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.MENU_VICTORIES)]
+        ])
+    
+    @staticmethod
     def target_actions(target_id: int, ig_handle: str) -> InlineKeyboardMarkup:
         """Action buttons for a target."""
         return InlineKeyboardMarkup([
@@ -268,7 +280,7 @@ class Keyboards:
             row = [
                 InlineKeyboardButton(
                     f"{priority_emoji} @{target.ig_handle}",
-                    url=f"instagram://user?username={target.ig_handle}"
+                    url=f"https://instagram.com/{target.ig_handle}"
                 ),
                 InlineKeyboardButton(
                     concern_text,
@@ -333,8 +345,8 @@ class Keyboards:
     def victories_actions() -> InlineKeyboardMarkup:
         """Victory wall action buttons."""
         return InlineKeyboardMarkup([
-            # [InlineKeyboardButton(Messages.VIEW_ALL_VICTORIES, callback_data=CallbackData.VICTORIES_ALL)],
-            # [InlineKeyboardButton(Messages.CELEBRATE_BUTTON, callback_data=CallbackData.VICTORIES_CELEBRATE)],
+            [InlineKeyboardButton("🏆 جدول رده‌بندی", callback_data=CallbackData.VICTORIES_LEADERBOARD)],
+            [InlineKeyboardButton("📤 اشتراک‌گذاری", callback_data=CallbackData.VICTORIES_SHARE)],
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)]
         ])
     
@@ -439,7 +451,7 @@ class Keyboards:
                 f"{Messages.NOTIF_EMAILS} [{toggle_text(prefs.email_campaigns)}]",
                 callback_data=CallbackData.NOTIF_TOGGLE.format(type="emails")
             )],
-        
+            [InlineKeyboardButton("👤 تغییر لقب", callback_data=CallbackData.VICTORIES_NICKNAME_START)],
         ])
     
 
@@ -729,4 +741,19 @@ class Keyboards:
                 InlineKeyboardButton("📤 اشتراک در تلگرام", url=tg_url),
                 InlineKeyboardButton("𝕏 اشتراک در X", url=x_url)
             ]
+        ])
+
+    @staticmethod
+    def generic_share_menu(share_text: str, back_callback: str = CallbackData.MENU_VICTORIES) -> InlineKeyboardMarkup:
+        """Menu for sharing text to social media (TG/X)."""
+        encoded_text = quote(share_text)
+        tg_url = f"https://t.me/share/url?url=https://t.me/Sedaye_Ma_Bot&text={encoded_text}"
+        x_url = f"https://x.com/intent/tweet?text={encoded_text}"
+        
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📤 تلگرام", url=tg_url),
+                InlineKeyboardButton("𝕏 اشتراک در X", url=x_url)
+            ],
+            [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=back_callback)]
         ])

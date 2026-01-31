@@ -2,7 +2,7 @@
 Settings handlers for Sedaye Ma bot.
 """
 from telegram import Update
-from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, ConversationHandler
 from sqlalchemy import select
 
 
@@ -62,6 +62,8 @@ async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="MarkdownV2",
                 reply_markup=Keyboards.notification_settings(user)
             )
+        
+        return ConversationHandler.END
 
 
 async def toggle_notification(update: Update, context: ContextTypes.DEFAULT_TYPE):

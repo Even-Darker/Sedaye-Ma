@@ -323,8 +323,19 @@ class User(Base):
     petitions = Column(Boolean, default=True)
     email_campaigns = Column(Boolean, default=True)
     
+    # Nickname for leaderboard (Anonymity first)
+    nickname = Column(String(30), nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    @property
+    def effective_nickname(self) -> str:
+        """Return chosen nickname or safe default."""
+        if self.nickname:
+            return self.nickname
+        # Default: User #ID (deterministic)
+        return f"User #{self.id}"
     
     def __repr__(self):
         return f"<User(id={self.id}, status={self.status.value})>"

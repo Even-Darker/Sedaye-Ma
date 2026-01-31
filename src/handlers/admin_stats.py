@@ -17,11 +17,6 @@ from src.utils import Keyboards, Formatters
 
 logger = logging.getLogger(__name__)
 
-def generate_progress_bar(percentage: int, length: int = 10) -> str:
-    """Generate a unicode progress bar."""
-    filled = int(length * percentage / 100)
-    return "█" * filled + "░" * (length - filled)
-
 @admin_required
 async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Generate and show the stats dashboard."""
@@ -91,8 +86,8 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         "👥 *ارتش مردمی*\n"
         f"• تعداد کل: `{esc(f'{total_users:,}')}`\n"
-        f"• فعال \\(۲۴ ساعت\\): `{esc(f'{dau:,}')}`  `{generate_progress_bar(dau_perc)}` `{esc(f'{dau_perc:.1f}')}%`\n"
-        f"• فعال \\(۷ روز\\): `{esc(f'{wau:,}')}`  `{generate_progress_bar(wau_perc)}` `{esc(f'{wau_perc:.1f}')}%`\n"
+        f"• فعال \\(۲۴ ساعت\\): `{esc(f'{dau:,}')}`  `{Formatters.generate_progress_bar(dau_perc)}` `{esc(f'{dau_perc:.1f}')}%`\n"
+        f"• فعال \\(۷ روز\\): `{esc(f'{wau:,}')}`  `{Formatters.generate_progress_bar(wau_perc)}` `{esc(f'{wau_perc:.1f}')}%`\n"
         f"• فعال \\(ماهانه\\): `{esc(f'{mau:,}')}`\n"
         f"• 🚫 مسدود‌کنندگان: `{esc(f'{total_blocked:,}')}`\n\n"
         
