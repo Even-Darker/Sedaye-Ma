@@ -77,11 +77,11 @@ async def react_to_announcement(update: Update, context: ContextTypes.DEFAULT_TY
         
         # Increment reaction (anonymous!)
         if emoji == "fire":
-            announcement.reaction_fire += 1
+            announcement.reaction_fire = (announcement.reaction_fire or 0) + 1
         elif emoji == "heart":
-            announcement.reaction_heart += 1
+            announcement.reaction_heart = (announcement.reaction_heart or 0) + 1
         elif emoji == "fist":
-            announcement.reaction_fist += 1
+            announcement.reaction_fist = (announcement.reaction_fist or 0) + 1
         
         await session.commit()
         

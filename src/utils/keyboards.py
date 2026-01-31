@@ -194,7 +194,7 @@ class Keyboards:
         """Menu to filter targets (New vs Reported vs All)."""
         return InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("🕰️ قدیمی", callback_data=CallbackData.FILTER_REPORTED),
+                InlineKeyboardButton("🕰️ تاریخچه ریپورت‌ها", callback_data=CallbackData.FILTER_REPORTED),
                 InlineKeyboardButton("🧃 جدید", callback_data=CallbackData.FILTER_NEW),
             ],
             [InlineKeyboardButton(Messages.BACK_BUTTON, callback_data=CallbackData.BACK_SANDISI)],
@@ -274,7 +274,7 @@ class Keyboards:
             # priority_emoji = "🔴" if target.priority <= 3 else "🟡" if target.priority <= 6 else "🟢"
             priority_emoji = ""
             # Determine button text
-            concern_text = "⚠️ اشکال" if show_report_button else "📝 گزارش"
+            concern_text = "⚠️ اشکال" if show_report_button else "🔔"
             
             # Row 2: Quick Actions
             row = [
