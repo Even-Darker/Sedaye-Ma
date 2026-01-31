@@ -140,7 +140,7 @@ async def report_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
         config = result.scalar_one_or_none()
         
         if config:
-            config.report_count += 1
+            config.report_count = (config.report_count or 0) + 1
             
             # Log the report
             report_log = UserConfigReport(config_id=config_id, encrypted_user_id=enc_id)

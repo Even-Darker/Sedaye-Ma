@@ -126,8 +126,8 @@ async def show_targets_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*\n{Messages.TARGETS_PROBLEM_HELP.format(Messages.IG_REPORT_HELP_FOOTER)}"
 
-        # Order and Limit
-        stmt = stmt.order_by(InstagramTarget.priority.asc(), InstagramTarget.anonymous_report_count.desc())
+        # Order and Limit: Newest first and most reported
+        stmt = stmt.order_by(InstagramTarget.first_listed.desc(), InstagramTarget.anonymous_report_count.desc())
         stmt = stmt.limit(TARGETS_PER_PAGE)
         
         result = await session.execute(stmt)
@@ -236,8 +236,8 @@ async def show_targets_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             header_text = f"{Messages.TARGETS_HEADER}\n\n📋 *همه صفحات*"
             
-        # Order and Limit
-        stmt = stmt.order_by(InstagramTarget.priority.asc(), InstagramTarget.anonymous_report_count.desc())
+        # Order and Limit: Newest first and most reported
+        stmt = stmt.order_by(InstagramTarget.first_listed.desc(), InstagramTarget.anonymous_report_count.desc())
         stmt = stmt.offset(offset).limit(TARGETS_PER_PAGE)
         
         result = await session.execute(stmt)
@@ -391,7 +391,7 @@ async def i_reported_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         session.add(new_log)
         
         # Increment counter (anonymous!)
-        target.anonymous_report_count += 1
+        target.anonymous_report_count = (target.anonymous_report_count or 0) + 1
         await session.commit()
         
         await query.answer("🙏 ممنون! گزارش شما ثبت شد ✊", show_alert=True)
