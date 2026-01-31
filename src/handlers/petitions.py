@@ -1,7 +1,7 @@
 """
 Petitions handlers for Sedaye Ma bot.
 """
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from sqlalchemy import select
 
@@ -124,11 +124,43 @@ async def view_petition(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def sign_petition(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handle petition click (tracking).
-    NOTE: usage deprecated in favor of direct URL button for better reliability.
+    Increments visit_count and provides the actual URL.
     """
     query = update.callback_query
-    await query.answer()
-    # Tracking logic removed as we use direct URL buttons now
+    petition_id = int(query.data.split(":")[-1])
+    
+    async with get_db() as session:
+        result = await session.execute(
+            select(Petition).where(Petition.id == petition_id)
+        )
+        petition = result.scalar_one_or_none()
+        
+        if not petition:
+            await query.answer(Messages.ERROR_NOT_FOUND, show_alert=True)
+            return
+            
+        # Increment visit count
+        petition.visit_count = (petition.visit_count or 0) + 1
+        url = petition.url
+        await session.commit()
+    
+    # We answer with the URL if possible, or send a message
+    # Most reliable: show an alert with the link or just edit the message to show a "GO" button
+    # But since it's a callback, we can also use answer_callback_query with text
+    
+    await query.answer("در حال انتقال به پتیشن...")
+    
+    # Send a follow-up message with the direct link for the user to click
+    # This is necessary because bots can't force-open a browser without user interaction (the first click was for tracking)
+    escaped_url = Formatters.escape_markdown(url)
+    await query.message.reply_text(
+        f"🔗 *لینک پتیشن:*\n\n{escaped_url}\n\n"
+        "برای امضا روی لینک بالا کلیک کنید\\.",
+        parse_mode="MarkdownV2",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 باز کردن پتیشن", url=url)],
+        ])
+    )
 
 
 async def handle_petition_share_options(update: Update, context: ContextTypes.DEFAULT_TYPE):

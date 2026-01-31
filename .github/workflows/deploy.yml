@@ -67,10 +67,22 @@ jobs:
             # Login to GHCR on server
             echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
             
-            # Pull new image
+            # 1. Pull new image
             docker pull $REGISTRY/$IMAGE_NAME:latest
             
-            # Stop old container
+            # 2. Backup Database before stopping
+            echo "Backing up database..."
+            mkdir -p $HOME/sedaye-ma-backups
+            if [ -f "$HOME/sedaye-ma-data/sedaye_ma.db" ]; then
+                cp $HOME/sedaye-ma-data/sedaye_ma.db $HOME/sedaye-ma-backups/sedaye_ma_$(date +%Y%m%d_%H%M%S).db
+                # Keep last 20 backups on server
+                ls -t $HOME/sedaye-ma-backups/sedaye_ma_*.db | tail -n +21 | xargs -r rm
+                echo "Backup created successfully."
+            else
+                echo "No database found to backup."
+            fi
+            
+            # 3. Stop old container
             docker stop $CONTAINER_NAME || true
             docker rm $CONTAINER_NAME || true
             

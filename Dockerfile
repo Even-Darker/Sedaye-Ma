@@ -21,8 +21,14 @@ RUN pip install --upgrade pip && \
 # Copy project files
 COPY . .
 
+# Make entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
+
 # Create volume for database (if using SQLite)
 VOLUME /app/data
+
+# Use entrypoint for backups
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Run the bot
 CMD ["python", "-m", "src.bot"]

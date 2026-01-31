@@ -17,11 +17,6 @@ from src.utils import Keyboards, Formatters
 
 logger = logging.getLogger(__name__)
 
-def generate_progress_bar(percentage: int, length: int = 10) -> str:
-    """Generate a unicode progress bar."""
-    filled = int(length * percentage / 100)
-    return "█" * filled + "░" * (length - filled)
-
 @admin_required
 async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Generate and show the stats dashboard."""
@@ -65,9 +60,9 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         active_petitions = (await session.execute(
             select(func.count(Petition.id)).where(Petition.status == PetitionStatus.ACTIVE)
         )).scalar() or 0
-        total_signatures = (await session.execute(select(func.sum(Petition.signatures_current)))).scalar() or 0
+        total_visits = (await session.execute(select(func.sum(Petition.visit_count)))).scalar() or 0
         top_petition = (await session.execute(
-            select(Petition).order_by(Petition.signatures_current.desc()).limit(1)
+            select(Petition).order_by(Petition.visit_count.desc()).limit(1)
         )).scalar()
 
         # --- 5. Email Campaigns ---
@@ -91,8 +86,8 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         "👥 *ارتش مردمی*\n"
         f"• تعداد کل: `{esc(f'{total_users:,}')}`\n"
-        f"• فعال \\(۲۴ ساعت\\): `{esc(f'{dau:,}')}`  `{generate_progress_bar(dau_perc)}` `{esc(f'{dau_perc:.1f}')}%`\n"
-        f"• فعال \\(۷ روز\\): `{esc(f'{wau:,}')}`  `{generate_progress_bar(wau_perc)}` `{esc(f'{wau_perc:.1f}')}%`\n"
+        f"• فعال \\(۲۴ ساعت\\): `{esc(f'{dau:,}')}`  `{Formatters.generate_progress_bar(dau_perc)}` `{esc(f'{dau_perc:.1f}')}%`\n"
+        f"• فعال \\(۷ روز\\): `{esc(f'{wau:,}')}`  `{Formatters.generate_progress_bar(wau_perc)}` `{esc(f'{wau_perc:.1f}')}%`\n"
         f"• فعال \\(ماهانه\\): `{esc(f'{mau:,}')}`\n"
         f"• 🚫 مسدود‌کنندگان: `{esc(f'{total_blocked:,}')}`\n\n"
         
@@ -105,8 +100,8 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📣 *پتیشن‌ها*\n"
         f"• تعداد کل: `{esc(f'{total_petitions:,}')}`\n"
         f"• در جریان: `{esc(f'{active_petitions:,}')}`\n"
-        f"• مجموع امضاها: `{esc(f'{total_signatures:,}')}`\n"
-        + (f"• برترین: `{esc(top_petition.title)}` \\({esc(f'{top_petition.signatures_current:,}')}\\)\n" if top_petition else "")
+        f"• مجموع بازدیدها: `{esc(f'{total_visits:,}')}`\n"
+        + (f"• برترین: `{esc(top_petition.title)}` \\({esc(f'{top_petition.visit_count:,}')}\\)\n" if top_petition else "")
         + "\n"
         
         "📧 *ایمیل‌ها*\n"

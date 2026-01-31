@@ -153,19 +153,19 @@ async def check_migrations():
     logger = logging.getLogger(__name__)
     
     async with AsyncSessionLocal() as session:
-        # Check if free_configs.report_count exists
+
+            
+        # Check if users.nickname exists
         try:
-            # We can't easily check columns in sqlite via sqlalchemy inspector in async mode quickly without creating a sync engine or raw sql
-            # Let's try to query it. If it fails, add it.
-            await session.execute(text("SELECT report_count FROM free_configs LIMIT 1"))
+            await session.execute(text("SELECT nickname FROM users LIMIT 1"))
         except Exception:
-            logger.info("Migration: Adding report_count to free_configs...")
-            await session.rollback() # Clear error
+            logger.info("Migration: Adding nickname to users...")
+            await session.rollback()
             async with engine.begin() as conn:
-                await conn.execute(text("ALTER TABLE free_configs ADD COLUMN report_count INTEGER DEFAULT 0"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN nickname VARCHAR(30)"))
             logger.info("Migration: Done.")
         else:
-            logger.info("Migration: No changes needed for free_configs.")
+            logger.info("Migration: No changes needed for users.")
             
 
 
