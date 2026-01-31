@@ -8,13 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2026-01-30
 
 ### Added
+- **More Stats**: Added more stats to the hall of fame.
 - **Special Guard Leaderboard**: Competitive ranking system for top-performing users with medals (🥇, 🥈, 🥉).
-- **Laqab (لقب) Customization**: Feature for users to set a custom alias for the leaderboard.
-- **Hyped Social Sharing**: Rank-specific, engagement-focused sharing for Telegram and X.
+- **Social Sharing**: Rank-specific, engagement-focused sharing for Telegram and X.
 - **Progress Tracking**: New visual progress bars for users outside the top 10.
 
 ### Changed
-- **Terminology**: Switched from "Nickname" to "Laqab" (لقب) across all user interfaces.
 - **Navigation**: Improved back-button logic in victories and leaderboard menus.
 - **Profile Management**: Relocated "Change Laqab" to the Settings menu with a shortcut from the Leaderboard.
 
