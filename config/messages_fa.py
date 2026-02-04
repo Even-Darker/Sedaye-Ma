@@ -140,7 +140,6 @@ Made with ❤️ for the GREAT people of Iran \\#JavidShah 🦁☀️
 
     LATEST_VICTORY = "🎉 *آخرین پیروزی*"
     VICTORY_REMOVED = "حذف شد\\!"
-    VICTORY_REPORTS_COUNT = "📊 {} گزارش از جامعه"
     VICTORY_CELEBRATE = "صدای ما شنیده شد\\!"
     
     # Report Removal Messages

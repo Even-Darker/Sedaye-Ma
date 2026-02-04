@@ -82,8 +82,6 @@ class NotificationService:
 
 [@{Formatters.escape_markdown(target.ig_handle)}](https://instagram.com/{target.ig_handle}) حذف شد\\!
 
-📊 {victory.final_report_count} گزارش از جامعه
-
 صدای ما شنیده شد\\! ✊🔥
 """
             
